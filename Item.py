@@ -28,7 +28,7 @@ class Ammo(Item):
         self.type = 'ammo'
         self.xScale = 2
         self.yScale = 2
-        self.vShift = 256
+        self.vShift = 128
 
 class Key(Item):
     def __init__(self, x, y, textureNum):
@@ -37,3 +37,10 @@ class Key(Item):
         self.xScale = 1
         self.yScale = 1
         self.vShift = 64
+
+class DoubleDamage(Item):
+    def __init__(self, x, y, textureNum):
+        super().__init__(x, y, textureNum)
+        self.type = 'doubleDamamge'
+        self.xScale = self.yScale = 1
+        self.vShift = 0

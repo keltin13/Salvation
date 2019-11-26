@@ -14,6 +14,7 @@ import string
 from Button import *
 from Enemy import *
 from Item import *
+from Animations import *
 
 ##################################
 ## Mode Superclass
@@ -29,10 +30,12 @@ class Mode(object):
         self.textureHeight = texH
         self.importAssets()
         self.createFonts()
+        self.addButtons()
         self.appStarted()
 
     def importAssets(self):     pass
     def createFonts(self):      pass
+    def addButtons(self):       pass
     def appStarted(self):       pass
 
     def checkModeSwitch(self, currentMode):
@@ -103,7 +106,6 @@ class MainMenuMode(Mode):
         # Menu buttons
         self.cx1, self.cy1 = 4*self.width/12, 5*self.height/7
         self.cx2, self.cy2 = 8*self.width/12, 5*self.height/7
-        self.addButtons()
 
     def importAssets(self):
         self.textures = []
@@ -163,16 +165,21 @@ class MainMenuMode(Mode):
 ##################################
 # To Do:
 #   - Ammo flickering
+#   - Level switching after user made level
 class CampaignMode(Mode):
     def appStarted(self, levelName = 'sysLevel1'):
         self.name = 'campaign'
         self.tempName = self.name
-        pygame.mouse.set_visible(0)
-        pygame.event.set_grab(0)
+        self.playerHealth = 100
+        # Item storage
+        self.backpack = []
+        # Shooting variables
         self.lastMouseX = None
         self.shotFired = False
         self.enemyHit = -1
         self.ammo = 25
+        self.damage = 1
+        self.bullets = []
         # Level map
         self.levelName = levelName
         self.levelMap = self.importMap()
@@ -181,7 +188,7 @@ class CampaignMode(Mode):
         # Initializes enemies and objects
         self.textureWidth, self.textureHeight = 64, 64
         self.shadowScale = 27
-        self.createSprites()
+        #self.createSprites()
         # Set scale for walls
         self.wallScale = 1.27
         # Player position, direction vector, and camera plane
@@ -197,22 +204,28 @@ class CampaignMode(Mode):
                     'DUNGEONCELL.bmp',
                     'GOOBRICKS.bmp',
                     'portal.png',
-                    'blueGhost.png',
+                    'demon.png',
                     'key.png',
                     'plasmaAmmo.png',
-                    'monsterSpawn.png'
+                    'monsterSpawn.png',
+                    'doubleDamage.png',
+                    'key2.png',
                 ]
         for url in urls:
-            image = pygame.image.load(folder + url)  # Load image
-            image = image.convert_alpha()                     # Convert pixel format
+            image = pygame.image.load(folder + url)     # Load image
+            image = image.convert_alpha()               # Convert pixel format
             image = pygame.transform.scale(image,       # Scale to standard size
                 (self.textureWidth, self.textureHeight))
             self.textures.append(image)
+        # Animations
+        self.bullet = pygame.image.load('Assets/plasmaBullet.png').convert_alpha()
+        self.bullet = pygame.transform.rotate(self.bullet, -32)
         # HUD
         self.weapon = pygame.image.load('Assets/plasmaGun.png').convert_alpha()
         self.weapon = pygame.transform.scale(self.weapon, (450, 150))
         self.weapon = pygame.transform.rotate(self.weapon, -32)
         self.crosshair = pygame.image.load('Assets/crosshair.png').convert_alpha()
+        self.healthIcon = pygame.image.load('Assets/healthIcon.png').convert_alpha()
 
     def createFonts(self):
         # Ammo count
@@ -224,7 +237,8 @@ class CampaignMode(Mode):
             Enemy(11.5, 5, 4),
             Ammo(6.5, 5.5, 6),
             Key(2, 2, 5),
-            EnemySpawn(5.5, 16.5, 7)
+            EnemySpawn(5.5, 16.5, 7),
+            DoubleDamage(2.5, 25, 8)
         ]
         # Lists used during sprite drawing
         self.spriteOrder = [None] * len(self.sprites)
@@ -234,44 +248,73 @@ class CampaignMode(Mode):
         with open(f'Levels/{self.levelName}.txt') as f:
             text = f.read()
         map = []
-        firstLine = True
+        self.sprites = []
+        currentLine = 1
         for line in text.splitlines():
-            if firstLine:
-                firstLine = False
+            if currentLine == 1:
                 playerPos, exit = line.split(':')
                 self.posX, self.posY = playerPos.split(',')
                 self.posX, self.posY = float(self.posX), float(self.posY)
                 self.exitX, self.exitY = exit.split(',')
                 self.exitX, self.exitY = float(self.exitX), float(self.exitY)
+            elif currentLine == 2:
+                for item in line.split(':'):
+                    itemType = item[0]
+                    x, y = item[1:].split(',')
+                    x, y = float(x), float(y)
+                    if itemType == 'E':
+                        self.sprites.append(Enemy(x, y, 4))
+                    elif itemType == 'A':
+                        self.sprites.append(Ammo(x, y, 6))
+                    elif itemType == 'K':
+                        self.sprites.append(Key(x, y, 5))
+                    elif itemType == 'S':
+                        self.sprites.append(EnemySpawn(x, y, 7))
+                    elif itemType == 'D':
+                        self.sprites.append(DoubleDamage(x, y, 8))
             else:
                 map.append([int(c) for c in line])
+            currentLine += 1
         return map
-
-    def keyReleased(self, key, mod):
-        if key == pygame.K_c:
-            self.tempName = 'levelEditor'
 
     def timerFired(self):
         if (int(self.posX), int(self.posY)) == (self.exitX, self.exitY):
-            self.appStarted(levelName = 'sysLevel2')
+            if self.levelName == 'sysLevel1':
+                self.interlevelMode.appStarted(self.levelName, 'sysLevel2')
+                self.tempName = 'interlevel'
+            elif self.levelName == 'sysLevel2':
+                self.interlevelMode.appStarted(self.levelName, 'sysLevel3')
+                self.tempName = 'interlevel'
+            elif self.levelName == 'sysLevel3':
+                self.tempName = 'mainMenu'
+            elif self.levelName == 'userLevel1':
+                self.tempName = 'levelEditor'
         self.spawnEnemies()
         self.moveEnemies()
         self.checkItemPickup()
+        self.stepAnimations()
         if not self.enemyHit == -1:
-            print('remove enemy')
-            self.sprites.pop(self.enemyHit)
+            if self.sprites[self.enemyHit].health > self.damage:
+                self.sprites[self.enemyHit].health -= self.damage
+            else:
+                self.sprites.pop(self.enemyHit)
             self.enemyHit = -1
 
     def spawnEnemies(self):
         for sprite in self.sprites:
             if isinstance(sprite, EnemySpawn):
-                sprite.spawn(self.sprites)
+                sprite.spawn(self.sprites, self.posX, self.posY)
 
     def moveEnemies(self):
         # Update position of each enemy
         for sprite in self.sprites:
             if isinstance(sprite, Enemy):
-                sprite.move(self.levelMap, self.posX, self.posY, self.time)
+                damage = sprite.move(self.levelMap, self.posX, self.posY, self.time)
+                if damage == 1:
+                    self.playerHealth -= 1
+                    if self.playerHealth <= 0:
+                        self.appStarted(self.levelName)
+                        self.tempName = 'mainMenu'
 
     def checkItemPickup(self):
         # Check if we have collided with an item
@@ -280,13 +323,28 @@ class CampaignMode(Mode):
                 if isinstance(self.sprites[i], Ammo):
                     self.ammo += 25
                 elif isinstance(self.sprites[i], Key):
-                    # add keys
-                    print('got key')
+                    if 'key' not in self.backpack:
+                        self.backpack.append('key')
+                elif isinstance(self.sprites[i], DoubleDamage):
+                    if 'double' not in self.backpack:
+                        self.backpack.append('double')
+                        self.damage += 1
                 self.sprites.pop(i)
 
+    def stepAnimations(self):
+        for i in range(len(self.bullets)-1, -1, -1):
+            if self.bullets[i].step(self.time):
+                self.bullets.pop(i)
+
     def mousePressed(self, x, y):
-        self.shotFired = True
-        self.ammo -= 1
+        if self.ammo > 0:
+            self.bullets.append(Bullet(self.width, self.height, self.bullet))
+            self.shotFired = True
+            self.ammo -= 1
+
+    def keyPressed(self, event, mod):
+        if event == pygame.K_SPACE:
+            print(self.posX, self.posY)
 
     # Sorts a list based on corresponding values in second list
     def dualSort(self, L, values):
@@ -333,12 +391,12 @@ class CampaignMode(Mode):
 
     def centerMouse(self, x):
         # Keep mouse on screen
-        if x > self.width - 400:
-            pygame.mouse.set_pos([400, self.height/2])
-            self.lastMouseX = 400
-        elif x < 400:
-            pygame.mouse.set_pos([self.width-400, self.height/2])
-            self.lastMouseX = self.width-400
+        if x > self.width/2 + 100:
+            pygame.mouse.set_pos([self.width/2, self.height/2])
+            self.lastMouseX = self.width/2
+        elif x < self.width/2 - 100:
+            pygame.mouse.set_pos([self.width/2, self.height/2])
+            self.lastMouseX = self.width/2
         x, y = pygame.mouse.get_pos()
         if y > self.height - 150:
             pygame.mouse.set_pos([x, 150])
@@ -346,7 +404,7 @@ class CampaignMode(Mode):
             pygame.mouse.set_pos([x, self.height-150])
 
     # Movement algorithm taken from https://lodev.org/cgtutor/raycasting.html
-    # Left and right stafing, though derivitave, are my own work
+    # Left and right strafing, though derivitave, are my own work
     def checkDownKeys(self, _keys):
         # Movement speed is based on time since last call
         self.moveSpeed = self.time * 5 / 1000
@@ -498,6 +556,7 @@ class CampaignMode(Mode):
             # Scales and shift for the sprite
             xScale, yScale = sprite.xScale, sprite.yScale
             vShift = sprite.vShift
+            if transformY == 0: continue
             vMoveScreen = int(vShift / transformY)
             # Column of sprite on screen
             spriteScreenX = int((self.width/2) * (1 + transformX / transformY))
@@ -552,7 +611,10 @@ class CampaignMode(Mode):
     def checkEnemyHit(self, x, index):
         if x < self.width/2+5 and x > self.width/2-5 and isinstance(self.sprites[index], Enemy):
             self.enemyHit = index
-            print('enemy hit', self.enemyHit)
+
+    def drawAnimations(self, screen):
+        for bullet in self.bullets:
+            bullet.draw(screen)
 
     def drawHUD(self, screen):
         # Weapon
@@ -565,13 +627,28 @@ class CampaignMode(Mode):
         screen.blit(self.ammoTitleSurface, (10, self.height-45))
         self.ammoCountSurface = self.HUDFont.render(f'{self.ammo}', True, (0, 0, 0))
         screen.blit(self.ammoCountSurface, (110, self.height-45))
+        for i in range(len(self.backpack)):
+            if self.backpack[i] == 'key':
+                texture = self.textures[9]
+            elif self.backpack[i] == 'double':
+                texture = self.textures[8]
+            texture = pygame.transform.scale(texture, (64, 64))
+            screen.blit(texture, (self.width/3-64-i*80, self.height-54))
+        # Health Bar
+        healthStep = 2
+        screen.blit(self.healthIcon, (10, 10))
+        pygame.draw.rect(screen, pygame.Color(255, 0, 0),
+                    (40, 10, 100*healthStep, 20))
+        pygame.draw.rect(screen, pygame.Color(0, 255, 0),
+                    (40, 10, self.playerHealth*healthStep, 20))
 
     def redrawAll(self, screen):
         pygame.draw.rect(screen, (0,0,0), (0, self.height/2, self.width, self.height), 0)
-        pygame.draw.rect(screen, (0,0,100), (0, 0, self.width, self.height/2), 0)
+        pygame.draw.rect(screen, (0,0,50), (0, 0, self.width, self.height/2), 0)
         # Draw walls and return list of nearest wall for each screen column
         ZBuffer = self.rayCast(screen)
         self.drawSprites(screen, ZBuffer)
+        self.drawAnimations(screen)
         self.drawHUD(screen)
 
 ##################################
@@ -580,9 +657,11 @@ class CampaignMode(Mode):
 # To-do:
 # - Ensure map meets conditions
 # - Drag and place
+# - back button
 class LevelEditorMode(Mode):
     def appStarted(self):
         self.name = 'levelEditor'
+        self.startLevel = False
         self.tempName = self.name
         self.boardRows, self.boardCols = 20, 30
         self.size = 20
@@ -599,7 +678,6 @@ class LevelEditorMode(Mode):
                     self.buttonBoard[i][j] = Button(self.boardLeft+j*self.size, self.boardTop+i*self.size,
                                                 self.size, self.size, self.textures[0])
                     self.intBoard[i][j] = 0
-        self.addButtons()
         self.buttonSelect = None
 
     def importAssets(self):
@@ -609,11 +687,13 @@ class LevelEditorMode(Mode):
                     'gridCell.png',
                     'playerIcon.png',
                     'DUNGEONBRICKS2.bmp',
-                    'DUNGEONCELL.bmp',
+                    'portal.png',
                     'GOOBRICKS.bmp',
-                    'easyIcon.png',
+                    'monsterSpawn.png',
                     'hardIcon.png',
-                    'ammo.png',
+                    'plasmaAmmo.png',
+                    'doubleDamage.png',
+                    'key2.png',
                     'exitIcon.png'
                 ]
         for url in urls:
@@ -647,15 +727,13 @@ class LevelEditorMode(Mode):
             'easy':     Button(185, 210, 40, 40, self.textures[5], hoverAction = 'mouseClick'),
             'hard':     Button(235, 210, 40, 40, self.textures[6], hoverAction = 'mouseClick'),
             'ammo':     Button(235, 270, 40, 40, self.textures[7], hoverAction = 'mouseClick'),
-            'exit':     Button(235, 330, 40, 40, self.textures[8], hoverAction = 'mouseClick'),
+            'double':   Button(185, 270, 40, 40, self.textures[8], hoverAction = 'mouseClick'),
+            'key':      Button(135, 270, 40, 40, self.textures[9], hoverAction = 'mouseClick'),
+            'exit':     Button(235, 330, 40, 40, self.textures[10], hoverAction = 'mouseClick'),
             'create':   Button(self.width-self.createButton.get_width()/1.5,
                                 self.height-self.createButton.get_height(),
                                 *self.createButton.get_size(), self.createButton)
         }
-
-    def keyReleased(self, key, mod):
-        if key == pygame.K_c:
-            self.tempName = 'mainMenu'
 
     def mouseMotion(self, x, y):
         for button in self.buttons:
@@ -665,18 +743,22 @@ class LevelEditorMode(Mode):
                 self.buttonBoard[i][j].updateHover(x, y)
 
     def mousePressed(self, x, y):
-        print(x, y)
-        for i in range(self.boardRows):
-            for j in range(self.boardCols):
-                if self.buttonBoard[i][j].mouseOver(x, y):
-                    if self.intBoard[i][j] != self.buttonSelect:
-                        self.buttonBoard[i][j].surface = pygame.transform.scale(self.textures[self.buttonSelect], (self.size, self.size))
-                        self.intBoard[i][j] = self.buttonSelect
-                    else:
-                        self.buttonBoard[i][j].surface = pygame.transform.scale(self.textures[0], (self.size, self.size))
-                        self.intBoard[i][j] = 0
-                    self.buttonBoard[i][j].click(x, y)
-                    return
+        if self.buttonSelect != None:
+            for i in range(self.boardRows):
+                for j in range(self.boardCols):
+                    if self.buttonBoard[i][j].mouseOver(x, y):
+                        if self.intBoard[i][j] != self.buttonSelect:
+                            self.buttonBoard[i][j].surface = pygame.transform.scale(
+                                                                self.textures[self.buttonSelect],
+                                                                (self.size, self.size))
+                            self.intBoard[i][j] = self.buttonSelect
+                        else:
+                            self.buttonBoard[i][j].surface = pygame.transform.scale(
+                                                                self.textures[0],
+                                                                (self.size, self.size))
+                            self.intBoard[i][j] = 0
+                        self.buttonBoard[i][j].click(x, y)
+                        return
         for button in self.buttons:
             self.buttons[button].clicked = False
             self.buttons[button].click(x, y)
@@ -693,25 +775,45 @@ class LevelEditorMode(Mode):
         elif self.buttons['easy'].clicked:  self.buttonSelect = 5; return
         elif self.buttons['hard'].clicked:  self.buttonSelect = 6; return
         elif self.buttons['ammo'].clicked:  self.buttonSelect = 7; return
-        elif self.buttons['exit'].clicked:  self.buttonSelect = 8; return
+        elif self.buttons['double'].clicked:  self.buttonSelect = 8; return
+        elif self.buttons['key'].clicked:  self.buttonSelect = 9; return
+        elif self.buttons['exit'].clicked:  self.buttonSelect = 10; return
 
     def exportMap(self):
+        spriteString = ''
         mapString = ''
         for i in range(self.boardRows):
             for j in range(self.boardCols):
                 value = self.intBoard[i][j]
-                if value == 1:
-                    playerPos = f"{i},{j}\n"
+                if value == 0:
+                    pass
+                elif value == 1:
+                    playerPos = f"{i+0.5},{j+0.5}:"
+                    value = 0
+                elif value == 3:
+                    value = 4
+                elif value <= 4:
                     value -= 1
-                elif value > 0:
-                    value -= 1
+                elif value <= 9:
+                    if value == 5:      spriteString += 'S'
+                    elif value == 6:    spriteString += 'S'
+                    elif value == 7:    spriteString += 'A'
+                    elif value == 8:    spriteString += 'D'
+                    elif value == 9:    spriteString += 'K'
+                    spriteString += f"{i+0.5},{j+0.5}:"
+                    value = 0
+                elif value == 10:
+                    exitPos = f"{i},{j}\n"
+                    value = 0
                 mapString += str(value)
             mapString += '\n'
-        mapString = playerPos + mapString
+        spriteString = spriteString[:-1] + '\n'
+        mapString = playerPos + exitPos + spriteString + mapString
         # From http://www.cs.cmu.edu/~112/notes/notes-strings.html#basicFileIO
         with open('Levels/userLevel1.txt', "w+") as f:
             f.write(mapString)
         self.tempName = 'campaign'
+        self.startLevel = True
 
     def redrawAll(self, screen):
         screen.fill((145, 238, 255))
@@ -733,3 +835,47 @@ class LevelEditorMode(Mode):
         screen.blit(self.spawnerSurface, (left+5, top+125))
         screen.blit(self.itemsSurface, (left+5, top+185))
         screen.blit(self.exitSurface, (left+5, top+245))
+
+##################################
+## InterlevelMode Class
+##################################
+class InterlevelMode(Mode):
+    def __init__(self, width, height, res, fps, texW, texH, campaignMode):
+        super().__init__(width, height, res, fps, texW, texH)
+        self.campaignMode = campaignMode
+
+    def appStarted(self, currentLevel = 'sysLevel1', nextLevel = 'sysLevel2'):
+        self.name = 'interlevel'
+        self.tempName = self.name
+        self.currentLevel = currentLevel
+        self.nextLevel = nextLevel
+
+    def createFonts(self):
+        # Button font
+        self.buttonFont = pygame.font.SysFont('Vivaldi', 45)
+        self.playAgainSurface = self.buttonFont.render('Play Again', True, pygame.Color(255, 255, 255))
+        self.nextLevelSurface = self.buttonFont.render('Next Level', True, pygame.Color(255, 255, 255))
+
+    def addButtons(self):
+        self.buttons = {
+            'play':     Button(self.width/4, 2*self.height/3, *self.playAgainSurface.get_size(),
+                                self.playAgainSurface),
+            'next':     Button(3*self.width/4, 2*self.height/3, *self.nextLevelSurface.get_size(),
+                                self.nextLevelSurface)
+        }
+
+    def mousePressed(self, x, y):
+        if self.buttons['play'].mouseOver(x, y):
+            self.campaignMode.appStarted(self.currentLevel)
+            self.tempName = 'campaign'
+        elif self.buttons['next'].mouseOver(x, y):
+            if self.nextLevel == 'mainMenu':
+                self.tempName = 'mainMenu'
+            else:
+                self.campaignMode.appStarted(self.nextLevel)
+                self.tempName = 'campaign'
+
+    def redrawAll(self, screen):
+        screen.fill((0, 0, 0))
+        for button in self.buttons:
+            self.buttons[button].draw(screen)
