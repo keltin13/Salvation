@@ -8,7 +8,7 @@
 ##       Main File        ##
 ############################
 
-import pygame
+import pygame   # Documentation at https://www.pygame.org/docs/
 from Mode import *
 
 class Salvation(object):
@@ -67,6 +67,7 @@ class Salvation(object):
                 if not cursorOn:    cursorOn = self.switchCursor(cursorOn)
                 playing = self.mainMenuMode.eventWrapper(pygame.event.get(), self._keys)
                 self.mainMenuMode.redrawAll(screen)
+                if self.mainMenuMode.startRandom: self.campaignMode.appStarted('randomLevel1')
                 self.gameMode = self.mainMenuMode.checkModeSwitch(self.gameMode)
             elif self.gameMode == 'campaign':
                 self.campaignMode.time = self.time

@@ -9,8 +9,7 @@
 ############################
 
 import pygame
-import math
-import string
+import math, string, random, decimal
 from Button import *
 from Enemy import *
 from Item import *
@@ -97,15 +96,9 @@ class MainMenuMode(Mode):
     def appStarted(self):
         self.name = 'mainMenu'
         self.tempName = self.name
-        # Font setup
-        self.titleFont = pygame.font.SysFont('Vivaldi', 150)
-        self.titleSurface = self.titleFont.render('Salvation', True, (0, 0, 0))
-        self.titleWidth, self.titleHeight = self.titleSurface.get_size()
-        self.titleX = self.width/2 - self.titleWidth/2
-        self.titleY = self.height/6
-        # Menu buttons
-        self.cx1, self.cy1 = 4*self.width/12, 5*self.height/7
-        self.cx2, self.cy2 = 8*self.width/12, 5*self.height/7
+        self.startRandom = False
+        self.clouds = []
+        self.timerCount = 300
 
     def importAssets(self):
         self.textures = []
@@ -113,7 +106,8 @@ class MainMenuMode(Mode):
         folder = 'Assets/'
         urls =  [
                     'cloud1.png',
-                    'cloud2.png'
+                    'cloud2.png',
+                    'cloud3.png'
                 ]
         for url in urls:
             image = pygame.image.load(folder + url)  # Load image
@@ -122,6 +116,12 @@ class MainMenuMode(Mode):
                                             (int(image.get_width()*scale),
                                              int(image.get_height()*scale)))
             self.textures.append(image)
+        self.background = []
+        self.background.append(pygame.image.load('Assets/cloud1.png').convert_alpha())
+        self.background.append(pygame.image.load('Assets/cloud2.png').convert_alpha())
+        self.background.append(pygame.image.load('Assets/cloud3.png').convert_alpha())
+        self.background.append(pygame.image.load('Assets/cloud4.png').convert_alpha())
+        self.background.append(pygame.image.load('Assets/cloud5.png').convert_alpha())
 
     def createFonts(self):
         # Title
@@ -129,43 +129,155 @@ class MainMenuMode(Mode):
         self.titleSurface = self.titleFont.render('Salvation', True, (0, 0, 0))
         self.titleWidth, self.titleHeight = self.titleSurface.get_size()
         self.titleX = self.width/2 - self.titleWidth/2
-        self.titleY = self.height/6
+        self.titleY = self.height/10
         # Buttons
         self.buttonFont = pygame.font.SysFont('Vivaldi', 40)
-        self.campaignButton = self.buttonFont.render('Campaign', True, (0, 0, 0))
+        self.bigButtonFont = pygame.font.SysFont('Vivaldi', 50)
+        self.campaignButton = self.bigButtonFont.render('Campaign', True, (0, 0, 0))
         self.levelEditorButton = self.buttonFont.render('Level Editor', True, (0, 0, 0))
+        self.randomButton = self.buttonFont.render('Random Map', True, (0, 0, 0))
 
     def addButtons(self):
-        pass
+        # Menu buttons
+        self.cx1, self.cy1 = 3*self.width/12, 4*self.height/7
+        self.cx2, self.cy2 = 9*self.width/12, 4*self.height/7
+        self.cx3, self.cy3 = self.width/2, 5*self.height/7
+        self.buttons = [
+            Button(self.cx1, self.cy1+self.randomButton.get_height()//2,
+                    *self.randomButton.get_size(), self.randomButton),
+            Button(self.cx2, self.cy2, *self.levelEditorButton.get_size(), self.levelEditorButton),
+            Button(self.cx3, self.cy3+2*self.campaignButton.get_height()/3, *self.campaignButton.get_size(), self.campaignButton),
+        ]
+
+    def timerFired(self):
+        for i in range(len(self.clouds)-1,-1,-1):
+            if self.clouds[i].cx > self.width + 50:
+                self.clouds.pop(i)
+            else:
+                self.clouds[i].cx += 2 * self.clouds[i].scale
+        if self.timerCount > 300:
+            self.timerCount = 1
+            surface = random.choice(self.background)
+            y = random.randint(0, self.height//2)
+            scale = random.randint(2, 5)/10
+            self.clouds.append(Button(-20, y, scale*surface.get_width(),
+                                        scale*surface.get_height(), surface))
+            self.clouds[-1].scale = scale
+
+        self.timerCount += 1
+
+    # Sorts a list based on corresponding values in second list
+    def dualSort(self, L, values):
+        assert(len(L) == len(values))
+        d = dict()
+        for i in range(len(L)):
+            d[L[i]] = values[i]
+        sortedValues = sorted(list(d.values()), reverse=True)
+        sortedKeys = []
+        for val in sortedValues:
+            for key in d:
+                if d[key] == val:
+                    sortedKeys.append(key)
+                    del d[key]
+                    break
+        return sortedKeys
+
+    def distance(self, x1, y1, x2, y2):
+        return ((x1-x2)**2 + (y1-y2)**2)**0.5
+
+    def getLegalMoves(self, current, width, height):
+        dirs = [(0,1),(1,0),(-1,0),(0,-1)]
+        legalMoves = []
+        for dx, dy in dirs:
+            x = current[0] + dx
+            y = current[1] + dy
+            if x >= 0 and x < width and y >= 0 and y < height:
+                legalMoves.append((x, y))
+        return legalMoves
+
+    def exportMap(self, grid):
+        width, height = len(grid), len(grid[0])
+        mapString = f'1.5,1.5:{width},{height}\n'
+        mapString += self.spawnItems(grid)
+        mapString += '1' * (height+2) + '\n'
+        for row in grid:
+            mapString += '1'
+            mapString += ''.join(row)
+            mapString += '1\n'
+        mapString += '1' * (height+2)
+        mapString = mapString[:-2] + '41'
+        # From http://www.cs.cmu.edu/~112/notes/notes-strings.html#basicFileIO
+        with open('Levels/randomLevel1.txt', "w+") as f:
+            f.write(mapString)
+
+    def spawnItems(self, grid):
+        itemString = ''
+        items = [None, 'S', 'A', 'D', 'K']
+        weights = [588, 593, 598, 599, 600]
+        for x in range(len(grid)):
+            for y in range(len(grid[0])):
+                if grid[x][y] == '0':
+                    item = random.choices(items, cum_weights = weights, k = 1)[0]
+                    if item != None:
+                        itemString += f'{item}{x+1.5},{y+1.5}:'
+        return itemString[:-1] + '\n'
+
+    def generateMap(self, width = 20, height = 60, iters = 2):
+        grid = [['1'] * height for _ in range(width)]
+        start, end = (0, 0), (width-1, height-1)
+        grid[start[0]][start[1]] = '0'
+
+        for current in [(0,0), (width//2, 0), (0, height//2), (width//2, height-1), (width-1, height//2)]:
+            for i in range(iters):
+                if i < iters-1:
+                    goal = (random.randint(0, width-1), random.randint(0, height-1))
+                else:
+                    goal = end
+                while current != goal:
+                    moves = self.getLegalMoves(current, width, height)
+                    distances = [self.distance(move[0], move[1], goal[0], goal[1]) for move in moves]
+                    moves = self.dualSort(moves, distances)
+                    moves.reverse()
+                    weights = [40, 65, 85, 100]
+                    weights = weights[0:len(moves)]
+                    current = random.choices(moves, cum_weights = weights, k = 1)[0]
+                    grid[current[0]][current[1]] = '0'
+        self.exportMap(grid)
 
     def mousePressed(self, x, y):
-        # Campaign Button
+        # Random Map Button
         w, h = self.textures[0].get_width()/2, self.textures[0].get_height()/2
         if x >= self.cx1-w and x <= self.cx1+w and y >= self.cy1-h and y <= self.cy1+h:
+            self.generateMap()
+            self.startRandom = True
             self.tempName = 'campaign'
         # Level editor button
         w, h = self.textures[1].get_width()/2, self.textures[1].get_height()/2
         if x >= self.cx2-w and x <= self.cx2+w and y >= self.cy2-h and y <= self.cy2+h:
             self.tempName = 'levelEditor'
+        # Campaign Button
+        w, h = self.textures[2].get_width()/2, self.textures[2].get_height()/2
+        cy3 = self.cy3+2*self.campaignButton.get_height()/3
+        if x >= self.cx3-w and x <= self.cx3+w and y >= self.cy3-h and y <= self.cy3+h:
+            self.tempName = 'campaign'
 
     def redrawAll(self, screen):
         screen.fill((145, 238, 255))
-        cloud1 = self.textures[0]
-        cloud2 = self.textures[1]
+        for cloud in self.clouds:
+            cloud.draw(screen)
+        cloud1, cloud2, cloud3 = self.textures[0], self.textures[1], self.textures[2]
         screen.blit(cloud1, (self.cx1-cloud1.get_width()//2, self.cy1-cloud1.get_height()//2))
         screen.blit(cloud2, (self.cx2-cloud2.get_width()//2, self.cy2-cloud2.get_height()//2))
-        screen.blit(self.campaignButton, (self.cx1-self.campaignButton.get_width()//2,
-                                          self.cy1))
-        screen.blit(self.levelEditorButton, (self.cx2-self.levelEditorButton.get_width()//2,
-                                             self.cy2-self.levelEditorButton.get_height()//2))
+        screen.blit(cloud3, (self.cx3-cloud3.get_width()//2, self.cy3-cloud3.get_height()//2))
         screen.blit(self.titleSurface, (self.titleX, self.titleY))
+        for button in self.buttons:
+            button.draw(screen)
 
 ##################################
 ## CampaignMode Class
 ##################################
 # To Do:
 #   - Ammo flickering
-#   - Level switching after user made level
 class CampaignMode(Mode):
     def appStarted(self, levelName = 'sysLevel1'):
         self.name = 'campaign'
@@ -201,7 +313,7 @@ class CampaignMode(Mode):
         folder = 'Assets/'
         urls =  [
                     'DUNGEONBRICKS2.bmp',
-                    'DUNGEONCELL.bmp',
+                    'SPOOKYDOOR.png',
                     'GOOBRICKS.bmp',
                     'portal.png',
                     'demon.png',
@@ -210,6 +322,9 @@ class CampaignMode(Mode):
                     'monsterSpawn.png',
                     'doubleDamage.png',
                     'key2.png',
+                    'monsterSpawnHard.png',
+                    'blob.png',
+                    'alien.png',
                 ]
         for url in urls:
             image = pygame.image.load(folder + url)     # Load image
@@ -221,8 +336,8 @@ class CampaignMode(Mode):
         self.bullet = pygame.image.load('Assets/plasmaBullet.png').convert_alpha()
         self.bullet = pygame.transform.rotate(self.bullet, -32)
         # HUD
-        self.weapon = pygame.image.load('Assets/plasmaGun.png').convert_alpha()
-        self.weapon = pygame.transform.scale(self.weapon, (450, 150))
+        self.weapon = pygame.image.load('Assets/plasmaGun2.png').convert_alpha()
+        self.weapon = pygame.transform.scale(self.weapon, (408, 90))
         self.weapon = pygame.transform.rotate(self.weapon, -32)
         self.crosshair = pygame.image.load('Assets/crosshair.png').convert_alpha()
         self.healthIcon = pygame.image.load('Assets/healthIcon.png').convert_alpha()
@@ -272,6 +387,8 @@ class CampaignMode(Mode):
                         self.sprites.append(EnemySpawn(x, y, 7))
                     elif itemType == 'D':
                         self.sprites.append(DoubleDamage(x, y, 8))
+                    elif itemType == 'H':
+                        self.sprites.append(EnemySpawnHard(x, y, 10))
             else:
                 map.append([int(c) for c in line])
             currentLine += 1
@@ -289,6 +406,8 @@ class CampaignMode(Mode):
                 self.tempName = 'mainMenu'
             elif self.levelName == 'userLevel1':
                 self.tempName = 'levelEditor'
+            elif self.levelName == 'randomLevel1':
+                self.tempName = 'mainMenu'
         self.spawnEnemies()
         self.moveEnemies()
         self.checkItemPickup()
@@ -310,8 +429,8 @@ class CampaignMode(Mode):
         for sprite in self.sprites:
             if isinstance(sprite, Enemy):
                 damage = sprite.move(self.levelMap, self.posX, self.posY, self.time)
-                if damage == 1:
-                    self.playerHealth -= 1
+                if damage != None:
+                    self.playerHealth -= damage
                     if self.playerHealth <= 0:
                         self.appStarted(self.levelName)
                         self.tempName = 'mainMenu'
@@ -342,9 +461,11 @@ class CampaignMode(Mode):
             self.shotFired = True
             self.ammo -= 1
 
-    def keyPressed(self, event, mod):
-        if event == pygame.K_SPACE:
-            print(self.posX, self.posY)
+    def keyPressed(self, key, mod):
+        if key == pygame.K_b:
+            self.tempName = 'mainMenu'
+        elif key == pygame.K_SPACE:
+            self.openDoor()
 
     # Sorts a list based on corresponding values in second list
     def dualSort(self, L, values):
@@ -402,6 +523,19 @@ class CampaignMode(Mode):
             pygame.mouse.set_pos([x, 150])
         elif y < 150:
             pygame.mouse.set_pos([x, self.height-150])
+
+    # From http://www.cs.cmu.edu/~112/notes/notes-variables-and-functions.html#HelperFunctions
+    def roundHalfUp(self, d):
+        rounding = decimal.ROUND_HALF_UP
+        return int(decimal.Decimal(d).to_integral_value(rounding=rounding))
+
+    def openDoor(self):
+        xDir = round(self.dirX)
+        yDir = round(self.dirY)
+        faceX = int(self.posX) + xDir
+        faceY = int(self.posY) + yDir
+        if 'key' in self.backpack and self.levelMap[faceX][faceY] == 2:
+            self.levelMap[faceX][faceY] = 0
 
     # Movement algorithm taken from https://lodev.org/cgtutor/raycasting.html
     # Left and right strafing, though derivitave, are my own work
@@ -679,6 +813,7 @@ class LevelEditorMode(Mode):
                                                 self.size, self.size, self.textures[0])
                     self.intBoard[i][j] = 0
         self.buttonSelect = None
+        self.issues = []
 
     def importAssets(self):
         self.textures = []
@@ -690,11 +825,12 @@ class LevelEditorMode(Mode):
                     'portal.png',
                     'GOOBRICKS.bmp',
                     'monsterSpawn.png',
-                    'hardIcon.png',
+                    'monsterSpawnHard.png',
                     'plasmaAmmo.png',
                     'doubleDamage.png',
                     'key2.png',
-                    'exitIcon.png'
+                    'exitIcon.png',
+                    'SPOOKYDOOR.png',
                 ]
         for url in urls:
             image = pygame.image.load(folder + url)  # Load image
@@ -710,6 +846,8 @@ class LevelEditorMode(Mode):
         # Create level
         self.createLevelFont = pygame.font.SysFont('Vivaldi', 40)
         self.createButton = self.createLevelFont.render('Create and Play', True, pygame.Color(0, 0, 0))
+        # Back button
+        self.backSurface = self.createLevelFont.render('Back', True, pygame.Color(0, 0, 0))
         # Descriptions
         self.descFont = pygame.font.SysFont('Vivaldi', 25)
         self.wallsSurface = self.descFont.render('Walls', True, pygame.Color(0, 0, 0))
@@ -717,6 +855,10 @@ class LevelEditorMode(Mode):
         self.spawnerSurface = self.descFont.render('Monsters', True, pygame.Color(0, 0, 0))
         self.itemsSurface = self.descFont.render('Items', True, pygame.Color(0, 0, 0))
         self.exitSurface = self.descFont.render('Exit', True, pygame.Color(0, 0, 0))
+        # Issues
+        self.playerIssue = self.descFont.render('Add a player spawn!', True, pygame.Color(255, 50, 50))
+        self.itemIssue = self.descFont.render('Add at least one item!', True, pygame.Color(255, 50, 50))
+        self.exitIssue = self.descFont.render('Add an exit!', True, pygame.Color(255, 50, 50))
 
     def addButtons(self):
         self.buttons = {
@@ -730,9 +872,12 @@ class LevelEditorMode(Mode):
             'double':   Button(185, 270, 40, 40, self.textures[8], hoverAction = 'mouseClick'),
             'key':      Button(135, 270, 40, 40, self.textures[9], hoverAction = 'mouseClick'),
             'exit':     Button(235, 330, 40, 40, self.textures[10], hoverAction = 'mouseClick'),
+            'door':     Button(235, 390, 40, 40, self.textures[11], hoverAction = 'mouseClick'),
             'create':   Button(self.width-self.createButton.get_width()/1.5,
                                 self.height-self.createButton.get_height(),
-                                *self.createButton.get_size(), self.createButton)
+                                *self.createButton.get_size(), self.createButton),
+            'back':     Button(350, self.height-self.backSurface.get_height(),
+                                *self.backSurface.get_size(), self.backSurface)
         }
 
     def mouseMotion(self, x, y):
@@ -764,8 +909,11 @@ class LevelEditorMode(Mode):
             self.buttons[button].click(x, y)
         self.updateButtonSelection()
         if self.buttons['create'].mouseOver(x, y):
-            self.exportMap()
-            self.tempName = 'campaign'
+            if self.checkConditions():
+                self.exportMap()
+                self.tempName = 'campaign'
+        elif self.buttons['back'].mouseOver(x, y):
+            self.tempName = 'mainMenu'
 
     def updateButtonSelection(self):
         if self.buttons['player'].clicked:  self.buttonSelect = 1; return
@@ -778,6 +926,22 @@ class LevelEditorMode(Mode):
         elif self.buttons['double'].clicked:  self.buttonSelect = 8; return
         elif self.buttons['key'].clicked:  self.buttonSelect = 9; return
         elif self.buttons['exit'].clicked:  self.buttonSelect = 10; return
+        elif self.buttons['door'].clicked:  self.buttonSelect = 11; return
+
+    def checkConditions(self):
+        hasPlayer = hasItem = hasExit = False
+        for i in range(self.boardRows):
+            for j in range(self.boardCols):
+                value = self.intBoard[i][j]
+                if value == 1:          hasPlayer = True
+                elif 5 <= value <= 9:   hasItem = True
+                elif value == 10:       hasExit = True
+        self.issues = []
+        if not hasPlayer:   self.issues.append('player')
+        if not hasItem:     self.issues.append('item')
+        if not hasExit:     self.issues.append('exit')
+        return hasPlayer and hasItem and hasExit
+
 
     def exportMap(self):
         spriteString = ''
@@ -796,7 +960,7 @@ class LevelEditorMode(Mode):
                     value -= 1
                 elif value <= 9:
                     if value == 5:      spriteString += 'S'
-                    elif value == 6:    spriteString += 'S'
+                    elif value == 6:    spriteString += 'H'
                     elif value == 7:    spriteString += 'A'
                     elif value == 8:    spriteString += 'D'
                     elif value == 9:    spriteString += 'K'
@@ -805,6 +969,8 @@ class LevelEditorMode(Mode):
                 elif value == 10:
                     exitPos = f"{i},{j}\n"
                     value = 0
+                elif value == 11:
+                    value = 2
                 mapString += str(value)
             mapString += '\n'
         spriteString = spriteString[:-1] + '\n'
@@ -818,9 +984,11 @@ class LevelEditorMode(Mode):
     def redrawAll(self, screen):
         screen.fill((145, 238, 255))
         screen.blit(self.titleSurface, (15, 10))
-        pygame.draw.rect(screen, pygame.Color(252, 253, 222), (15, 10+self.titleSurface.get_height(), 30+self.titleSurface.get_width(), self.height-25-self.titleSurface.get_height()), 0)
+        pygame.draw.rect(screen, pygame.Color(252, 253, 222), (15, 10+self.titleSurface.get_height(),
+                        30+self.titleSurface.get_width(), self.height-25-self.titleSurface.get_height()), 0)
         self.drawOptions(15, 10+self.titleSurface.get_height(), screen)
         self.drawBoard(200, 40, 20, screen)
+        self.drawIssues(screen)
         for button in self.buttons:
             self.buttons[button].draw(screen)
 
@@ -836,6 +1004,17 @@ class LevelEditorMode(Mode):
         screen.blit(self.itemsSurface, (left+5, top+185))
         screen.blit(self.exitSurface, (left+5, top+245))
 
+    def drawIssues(self, screen):
+        if len(self.issues) == 0:
+            return
+        issue = self.issues[0]
+        if issue == 'player':
+            screen.blit(self.playerIssue, (self.width - 250, self.height - 40))
+        elif issue == 'item':
+            screen.blit(self.itemIssue, (self.width - 250, self.height - 40))
+        elif issue == 'exit':
+            screen.blit(self.exitIssue, (self.width - 250, self.height - 40))
+
 ##################################
 ## InterlevelMode Class
 ##################################
@@ -850,10 +1029,15 @@ class InterlevelMode(Mode):
         self.currentLevel = currentLevel
         self.nextLevel = nextLevel
 
+    def importAssets(self):
+        self.background = pygame.image.load('Assets/background.png').convert_alpha()
+        self.background = pygame.transform.scale(self.background,
+                                                    (self.width, self.height))
+
     def createFonts(self):
         # Button font
         self.buttonFont = pygame.font.SysFont('Vivaldi', 45)
-        self.playAgainSurface = self.buttonFont.render('Play Again', True, pygame.Color(255, 255, 255))
+        self.playAgainSurface = self.buttonFont.render('Restart Level', True, pygame.Color(255, 255, 255))
         self.nextLevelSurface = self.buttonFont.render('Next Level', True, pygame.Color(255, 255, 255))
 
     def addButtons(self):
@@ -877,5 +1061,6 @@ class InterlevelMode(Mode):
 
     def redrawAll(self, screen):
         screen.fill((0, 0, 0))
+        screen.blit(self.background, (0, 0))
         for button in self.buttons:
             self.buttons[button].draw(screen)

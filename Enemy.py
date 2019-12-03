@@ -33,12 +33,26 @@ class EnemySpawn(object):
                 self.dt = 0
                 sprites.append(Enemy(self.x, self.y, 4))
 
+class EnemySpawnHard(EnemySpawn):
+    def spawn(self, sprites, playerX, playerY):
+        if self.distance(self.x, self.y, playerX, playerY < 10):
+            time = pygame.time.get_ticks()
+            self.dt += time - self.time
+            if self.dt > self.spawnTime:
+                self.time = time
+                self.dt = 0
+                monster = random.choices(['d', 'b', 'a'], cum_weights = [10, 15, 20])[0]
+                if monster == 'd':      sprites.append(Demon(self.x, self.y, 4))
+                elif monster == 'b':    sprites.append(Blob(self.x, self.y, 11))
+                elif monster == 'a':    sprites.append(Alien(self.x, self.y, 12))
+
 class Enemy(object):
     def __init__(self, x, y, textureNum):
         self.x = x
         self.y = y
         self.health = 2
         self.speedScale = 0.00117
+        self.damage = 1
         self.target = (x, y)
         self.dir = (1, 0)
         self.targetDist = self.distance(self.x, self.y, *self.target)
@@ -77,7 +91,7 @@ class Enemy(object):
             self.step(speed)
             newDistance = self.distance(self.x, self.y, self.target[0], self.target[1])
         else:   # If the enemy is in attacking range, stop
-            return 1
+            return self.damage
         # If we moved farther away from the current target calculate a new target
         if newDistance >= self.targetDist:
             # Get map coordinates
@@ -114,3 +128,24 @@ class Enemy(object):
             self.targetDist = self.distance(playerX, playerY, *self.target)
         else:   # Otherwise just update distance
             self.targetDist = newDistance
+
+class Demon(Enemy):
+    def __init__(self, x, y, textureNum):
+        super().__init__(x, y, textureNum)
+        self.health = 2
+        self.speedScale = 0.00117
+        self.damage = 1
+
+class Blob(Enemy):
+    def __init__(self, x, y, textureNum):
+        super().__init__(x, y, textureNum)
+        self.health = 4
+        self.speedScale = 0.00067
+        self.damage = 2
+
+class Alien(Enemy):
+    def __init__(self, x, y, textureNum):
+        super().__init__(x, y, textureNum)
+        self.health = 1
+        self.speedScale = 0.00217
+        self.damage = 5

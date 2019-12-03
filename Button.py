@@ -14,7 +14,7 @@ class Button(object):
     # Initialize a Button at a center point
     def __init__(self, cx, cy, w, h, surface, hoverAction = 'mouse'):
         self.cx, self.cy = cx, cy
-        self.w, self.h = w, h
+        self.w, self.h = int(w), int(h)
         self.surface = pygame.transform.scale(surface, (self.w, self.h))
         self.hoverAction = hoverAction
         self.hovering = False
