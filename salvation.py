@@ -23,6 +23,7 @@ class Salvation(object):
         # Start pygame
         pygame.init()
 
+    # Switch the cursor on and off
     def switchCursor(self, cursorOn):
         if cursorOn:
             pygame.mouse.set_visible(0)
@@ -32,6 +33,7 @@ class Salvation(object):
             pygame.event.set_grab(0)
         return not cursorOn
 
+    # Main game loop
     def run(self):
         # pygame setup
         clock = pygame.time.Clock()
@@ -62,34 +64,48 @@ class Salvation(object):
             self.time = clock.tick(self.fps)    # limit framerate
             #print(clock.get_fps())
             screen.fill((0, 0, 0))
-            # Check gameMode
+            # Check gameMode, and for each mode:
+            # - Display cursor properly
+            # - Send events to handler
+            # - Draw mode to screen
+            # - Other mode-specific changes
+            # - Check for a change in modes
             if self.gameMode == 'mainMenu':
                 if not cursorOn:    cursorOn = self.switchCursor(cursorOn)
-                playing = self.mainMenuMode.eventWrapper(pygame.event.get(), self._keys)
+                playing = self.mainMenuMode.eventWrapper(pygame.event.get(),
+                                                            self._keys)
                 self.mainMenuMode.redrawAll(screen)
-                if self.mainMenuMode.startRandom: self.campaignMode.appStarted('randomLevel1')
+                if self.mainMenuMode.startRandom:
+                    self.campaignMode.appStarted('randomLevel1')
                 self.gameMode = self.mainMenuMode.checkModeSwitch(self.gameMode)
             elif self.gameMode == 'campaign':
                 self.campaignMode.time = self.time
                 if cursorOn:    cursorOn = self.switchCursor(cursorOn)
-                playing = self.campaignMode.eventWrapper(pygame.event.get(), self._keys)
+                playing = self.campaignMode.eventWrapper(pygame.event.get(),
+                                                            self._keys)
                 self.campaignMode.redrawAll(screen)
                 self.gameMode = self.campaignMode.checkModeSwitch(self.gameMode)
             elif self.gameMode == 'levelEditor':
                 if not cursorOn:    cursorOn = self.switchCursor(cursorOn)
-                playing = self.levelEditorMode.eventWrapper(pygame.event.get(), self._keys)
+                playing = self.levelEditorMode.eventWrapper(pygame.event.get(),
+                                                                self._keys)
                 self.levelEditorMode.redrawAll(screen)
-                if self.levelEditorMode.startLevel: self.campaignMode.appStarted('userLevel1')
-                self.gameMode = self.levelEditorMode.checkModeSwitch(self.gameMode)
+                if self.levelEditorMode.startLevel:
+                    self.campaignMode.appStarted('userLevel1')
+                self.gameMode = \
+                            self.levelEditorMode.checkModeSwitch(self.gameMode)
             elif self.gameMode == 'interlevel':
                 if not cursorOn:    cursorOn = self.switchCursor(cursorOn)
-                playing = self.interlevelMode.eventWrapper(pygame.event.get(), self._keys)
+                playing = self.interlevelMode.eventWrapper(pygame.event.get(),
+                                                            self._keys)
                 self.interlevelMode.redrawAll(screen)
-                self.gameMode = self.interlevelMode.checkModeSwitch(self.gameMode)
+                self.gameMode = \
+                            self.interlevelMode.checkModeSwitch(self.gameMode)
             # Render changes to screen
             pygame.display.flip()
 
         pygame.quit()
 
+# Run the game
 if (__name__ == '__main__'):
     Salvation().run()

@@ -9,7 +9,7 @@
 ############################
 
 import pygame
-import math, string, random, decimal
+import math, string, random
 from Button import *
 from Enemy import *
 from Item import *
@@ -18,6 +18,7 @@ from Animations import *
 ##################################
 ## Mode Superclass
 ##################################
+# A generic mode class with basic setup and event handler
 class Mode(object):
     # Initialize the mode
     def __init__(self, width, height, res, fps, texW, texH):
@@ -37,6 +38,7 @@ class Mode(object):
     def addButtons(self):       pass
     def appStarted(self):       pass
 
+    # Check for an indication to switch modes
     def checkModeSwitch(self, currentMode):
         if self.tempName != currentMode:
             currentMode = self.tempName
@@ -56,7 +58,7 @@ class Mode(object):
     def keyReleased(self, key, mod):    pass
     def checkDownKeys(self, _keys):     pass
 
-    # Event handler from http://blog.lukasperaza.com/getting-started-with-pygame/
+    # Event handler from http://blog.lukasperaza.com/getting-started-with-pygame
     def eventWrapper(self, events, _keys):
         self.timerFired()
         for event in events:
@@ -64,7 +66,7 @@ class Mode(object):
                 self.mousePressed(*(event.pos))
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 self.mouseReleased(*(event.pos))
-            elif event.type == pygame.MOUSEMOTION and event.buttons == (0, 0, 0):
+            elif event.type == pygame.MOUSEMOTION and event.buttons == (0,0,0):
                 self.mouseMotion(*(event.pos))
             elif event.type == pygame.MOUSEMOTION and event.buttons[0] == 1:
                 self.mouseDrag(*(event.pos))
@@ -80,6 +82,7 @@ class Mode(object):
         self.checkDownKeys(_keys)
         return True
 
+    # Draw the name of the mode
     def redrawAll(self, screen):
         font = pygame.font.Font(None, 40)
         screen.blit(font.render(self.name, False, pygame.Color(255, 255, 255)),
@@ -88,26 +91,27 @@ class Mode(object):
 ##################################
 ## MainMenuMode Class
 ##################################
-# To do:
-#   - tighten button box
-#   - hovering cursor for button
-#   - moving clouds, etc.
+# Main Menu Mode:
+# - Chooses between game levels
+# - Randomly generates a map
 class MainMenuMode(Mode):
     def appStarted(self):
         self.name = 'mainMenu'
         self.tempName = self.name
         self.startRandom = False
+        # For cloud spawning
         self.clouds = []
         self.timerCount = 300
 
+    # Import necessary images
     def importAssets(self):
         self.textures = []
         scale = 1.3
         folder = 'Assets/'
         urls =  [
-                    'cloud1.png',
-                    'cloud2.png',
-                    'cloud3.png'
+                    'cloud1.png',   # Citation 1 in readme.txt
+                    'cloud2.png',   # Citation 1 in readme.txt
+                    'cloud3.png'    # Citation 1 in readme.txt
                 ]
         for url in urls:
             image = pygame.image.load(folder + url)  # Load image
@@ -117,12 +121,18 @@ class MainMenuMode(Mode):
                                              int(image.get_height()*scale)))
             self.textures.append(image)
         self.background = []
-        self.background.append(pygame.image.load('Assets/cloud1.png').convert_alpha())
-        self.background.append(pygame.image.load('Assets/cloud2.png').convert_alpha())
-        self.background.append(pygame.image.load('Assets/cloud3.png').convert_alpha())
-        self.background.append(pygame.image.load('Assets/cloud4.png').convert_alpha())
-        self.background.append(pygame.image.load('Assets/cloud5.png').convert_alpha())
+        self.background.append(                     # Citation 1 in readme.txt
+                        pygame.image.load('Assets/cloud1.png').convert_alpha())
+        self.background.append(                     # Citation 1 in readme.txt
+                        pygame.image.load('Assets/cloud2.png').convert_alpha())
+        self.background.append(                     # Citation 1 in readme.txt
+                        pygame.image.load('Assets/cloud3.png').convert_alpha())
+        self.background.append(                     # Citation 1 in readme.txt
+                        pygame.image.load('Assets/cloud4.png').convert_alpha())
+        self.background.append(                     # Citation 1 in readme.txt
+                        pygame.image.load('Assets/cloud5.png').convert_alpha())
 
+    # Import and render necessary fonts
     def createFonts(self):
         # Title
         self.titleFont = pygame.font.SysFont('Vivaldi', 150)
@@ -133,10 +143,14 @@ class MainMenuMode(Mode):
         # Buttons
         self.buttonFont = pygame.font.SysFont('Vivaldi', 40)
         self.bigButtonFont = pygame.font.SysFont('Vivaldi', 50)
-        self.campaignButton = self.bigButtonFont.render('Campaign', True, (0, 0, 0))
-        self.levelEditorButton = self.buttonFont.render('Level Editor', True, (0, 0, 0))
-        self.randomButton = self.buttonFont.render('Random Map', True, (0, 0, 0))
+        self.campaignButton = self.bigButtonFont.render('Campaign',
+                                                            True, (0, 0, 0))
+        self.levelEditorButton = self.buttonFont.render('Level Editor',
+                                                        True, (0, 0, 0))
+        self.randomButton = self.buttonFont.render('Random Map',
+                                                        True, (0, 0, 0))
 
+    # Add buttons
     def addButtons(self):
         # Menu buttons
         self.cx1, self.cy1 = 3*self.width/12, 4*self.height/7
@@ -145,10 +159,13 @@ class MainMenuMode(Mode):
         self.buttons = [
             Button(self.cx1, self.cy1+self.randomButton.get_height()//2,
                     *self.randomButton.get_size(), self.randomButton),
-            Button(self.cx2, self.cy2, *self.levelEditorButton.get_size(), self.levelEditorButton),
-            Button(self.cx3, self.cy3+2*self.campaignButton.get_height()/3, *self.campaignButton.get_size(), self.campaignButton),
+            Button(self.cx2, self.cy2, *self.levelEditorButton.get_size(),
+                    self.levelEditorButton),
+            Button(self.cx3, self.cy3+2*self.campaignButton.get_height()/3,
+                    *self.campaignButton.get_size(), self.campaignButton),
         ]
 
+    # Move and spawn the clouds
     def timerFired(self):
         for i in range(len(self.clouds)-1,-1,-1):
             if self.clouds[i].cx > self.width + 50:
@@ -163,7 +180,6 @@ class MainMenuMode(Mode):
             self.clouds.append(Button(-20, y, scale*surface.get_width(),
                                         scale*surface.get_height(), surface))
             self.clouds[-1].scale = scale
-
         self.timerCount += 1
 
     # Sorts a list based on corresponding values in second list
@@ -182,9 +198,11 @@ class MainMenuMode(Mode):
                     break
         return sortedKeys
 
+    # Finds the distance between two points
     def distance(self, x1, y1, x2, y2):
         return ((x1-x2)**2 + (y1-y2)**2)**0.5
 
+    # Gets the legal moves for randomly generated map
     def getLegalMoves(self, current, width, height):
         dirs = [(0,1),(1,0),(-1,0),(0,-1)]
         legalMoves = []
@@ -195,6 +213,7 @@ class MainMenuMode(Mode):
                 legalMoves.append((x, y))
         return legalMoves
 
+    # Exports a 2D list to a properly formatted file
     def exportMap(self, grid):
         width, height = len(grid), len(grid[0])
         mapString = f'1.5,1.5:{width},{height}\n'
@@ -210,65 +229,86 @@ class MainMenuMode(Mode):
         with open('Levels/randomLevel1.txt', "w+") as f:
             f.write(mapString)
 
+    # Generate a string of randomly spawned items within a map
     def spawnItems(self, grid):
+        # Items are weighted by desired frequency
         itemString = ''
         items = [None, 'S', 'A', 'D', 'K']
         weights = [588, 593, 598, 599, 600]
         for x in range(len(grid)):
             for y in range(len(grid[0])):
                 if grid[x][y] == '0':
-                    item = random.choices(items, cum_weights = weights, k = 1)[0]
+                    item = random.choices(items,
+                                            cum_weights = weights, k = 1)[0]
                     if item != None:
                         itemString += f'{item}{x+1.5},{y+1.5}:'
         return itemString[:-1] + '\n'
 
+    # Randomly generate a map
     def generateMap(self, width = 20, height = 60, iters = 2):
         grid = [['1'] * height for _ in range(width)]
         start, end = (0, 0), (width-1, height-1)
         grid[start[0]][start[1]] = '0'
-
-        for current in [(0,0), (width//2, 0), (0, height//2), (width//2, height-1), (width-1, height//2)]:
+        # Start at 5 points along the outside of the map
+        for current in [(0,0), (width//2, 0), (0, height//2),
+                        (width//2, height-1), (width-1, height//2)]:
+            # For a desired number of interations
             for i in range(iters):
+                # Move towards a random goal then to the exit
                 if i < iters-1:
-                    goal = (random.randint(0, width-1), random.randint(0, height-1))
+                    goal = (random.randint(0, width-1),
+                                random.randint(0, height-1))
                 else:
                     goal = end
+                # Until the goal is reached take a weighted random choice of
+                # directions and clear walls along the way
                 while current != goal:
                     moves = self.getLegalMoves(current, width, height)
-                    distances = [self.distance(move[0], move[1], goal[0], goal[1]) for move in moves]
+                    distances = [self.distance(move[0], move[1],
+                                            goal[0], goal[1]) for move in moves]
                     moves = self.dualSort(moves, distances)
                     moves.reverse()
                     weights = [40, 65, 85, 100]
                     weights = weights[0:len(moves)]
-                    current = random.choices(moves, cum_weights = weights, k = 1)[0]
+                    current = random.choices(moves,
+                                                cum_weights = weights, k = 1)[0]
                     grid[current[0]][current[1]] = '0'
+        # Export the map to a file
         self.exportMap(grid)
 
+    # Check for presses of the buttons
     def mousePressed(self, x, y):
         # Random Map Button
         w, h = self.textures[0].get_width()/2, self.textures[0].get_height()/2
-        if x >= self.cx1-w and x <= self.cx1+w and y >= self.cy1-h and y <= self.cy1+h:
+        if (x >= self.cx1-w and x <= self.cx1+w and y >= self.cy1-h and
+            y <= self.cy1+h):
             self.generateMap()
             self.startRandom = True
             self.tempName = 'campaign'
         # Level editor button
         w, h = self.textures[1].get_width()/2, self.textures[1].get_height()/2
-        if x >= self.cx2-w and x <= self.cx2+w and y >= self.cy2-h and y <= self.cy2+h:
+        if (x >= self.cx2-w and x <= self.cx2+w and y >= self.cy2-h and
+            y <= self.cy2+h):
             self.tempName = 'levelEditor'
         # Campaign Button
-        w, h = self.textures[2].get_width()/2, self.textures[2].get_height()/2
+        w, h = self.campaignButton.get_size()
+        cx3, cy3 = self.buttons[2].cx, self.buttons[2].cy
         cy3 = self.cy3+2*self.campaignButton.get_height()/3
-        if x >= self.cx3-w and x <= self.cx3+w and y >= self.cy3-h and y <= self.cy3+h:
+        if x >= cx3-w and x <= cx3+w and y >= cy3-h and y <= cy3+h:
             self.tempName = 'campaign'
 
+    # Draw the moving clouds and the buttons
     def redrawAll(self, screen):
         screen.fill((145, 238, 255))
         for cloud in self.clouds:
             cloud.draw(screen)
-        cloud1, cloud2, cloud3 = self.textures[0], self.textures[1], self.textures[2]
-        screen.blit(cloud1, (self.cx1-cloud1.get_width()//2, self.cy1-cloud1.get_height()//2))
-        screen.blit(cloud2, (self.cx2-cloud2.get_width()//2, self.cy2-cloud2.get_height()//2))
-        screen.blit(cloud3, (self.cx3-cloud3.get_width()//2, self.cy3-cloud3.get_height()//2))
+        cloud1, cloud2, cloud3 = self.textures
+        screen.blit(cloud1, (self.cx1-cloud1.get_width()//2,
+                                self.cy1-cloud1.get_height()//2))
+        screen.blit(cloud2, (self.cx2-cloud2.get_width()//2,
+                                self.cy2-cloud2.get_height()//2))
+        screen.blit(cloud3, (self.cx3-cloud3.get_width()//2,
+                                self.cy3-cloud3.get_height()//2))
         screen.blit(self.titleSurface, (self.titleX, self.titleY))
         for button in self.buttons:
             button.draw(screen)
@@ -276,8 +316,9 @@ class MainMenuMode(Mode):
 ##################################
 ## CampaignMode Class
 ##################################
-# To Do:
-#   - Ammo flickering
+# Campaign Mode:
+# - Allows you to play the game
+# - Uses premade, random, and user-made levels
 class CampaignMode(Mode):
     def appStarted(self, levelName = 'sysLevel1'):
         self.name = 'campaign'
@@ -300,21 +341,20 @@ class CampaignMode(Mode):
         # Initializes enemies and objects
         self.textureWidth, self.textureHeight = 64, 64
         self.shadowScale = 27
-        #self.createSprites()
         # Set scale for walls
         self.wallScale = 1.27
         # Player position, direction vector, and camera plane
-        #self.posX, self.posY = 3, 3
         self.dirX, self.dirY = 1.0, 0.0
         self.planeX, self.planeY = 0.0, -0.66
 
+    # Load necessary images
     def importAssets(self):
         self.textures = []
         folder = 'Assets/'
         urls =  [
-                    'DUNGEONBRICKS2.bmp',
-                    'SPOOKYDOOR.png',
-                    'GOOBRICKS.bmp',
+                    'DUNGEONBRICKS2.bmp',   # Citation 2 in readme.txt
+                    'SPOOKYDOOR.png',       # Citation 2 in readme.txt
+                    'GOOBRICKS.bmp',        # Citation 2 in readme.txt
                     'portal.png',
                     'demon.png',
                     'key.png',
@@ -333,45 +373,46 @@ class CampaignMode(Mode):
                 (self.textureWidth, self.textureHeight))
             self.textures.append(image)
         # Animations
-        self.bullet = pygame.image.load('Assets/plasmaBullet.png').convert_alpha()
+        self.bullet = \
+                    pygame.image.load('Assets/plasmaBullet.png').convert_alpha()
         self.bullet = pygame.transform.rotate(self.bullet, -32)
         # HUD
         self.weapon = pygame.image.load('Assets/plasmaGun2.png').convert_alpha()
+        self.double = \
+             pygame.image.load('Assets/doubleDamageOverlay.png').convert_alpha()
+        self.double = pygame.transform.scale(self.double,
+                                                (self.width, self.height))
+        # ^ Citation 3 in readme.txt
         self.weapon = pygame.transform.scale(self.weapon, (408, 90))
         self.weapon = pygame.transform.rotate(self.weapon, -32)
-        self.crosshair = pygame.image.load('Assets/crosshair.png').convert_alpha()
-        self.healthIcon = pygame.image.load('Assets/healthIcon.png').convert_alpha()
+        self.crosshair = \
+                    pygame.image.load('Assets/crosshair.png').convert_alpha()
+        self.healthIcon = \
+                    pygame.image.load('Assets/healthIcon.png').convert_alpha()
 
+    # Import and render necessary fonts
     def createFonts(self):
         # Ammo count
         self.HUDFont = pygame.font.SysFont('Bahnschrift', 30)
         self.ammoTitleSurface = self.HUDFont.render('Ammo:', True, (0, 0, 0))
 
-    def createSprites(self):
-        self.sprites = [
-            Enemy(11.5, 5, 4),
-            Ammo(6.5, 5.5, 6),
-            Key(2, 2, 5),
-            EnemySpawn(5.5, 16.5, 7),
-            DoubleDamage(2.5, 25, 8)
-        ]
-        # Lists used during sprite drawing
-        self.spriteOrder = [None] * len(self.sprites)
-        self.spriteDistance = [None] * len(self.sprites)
-
+    # Read the level in from a file
     def importMap(self):
+        # File input from http://www.cs.cmu.edu/~112/notes/notes-strings.html
         with open(f'Levels/{self.levelName}.txt') as f:
             text = f.read()
         map = []
         self.sprites = []
         currentLine = 1
         for line in text.splitlines():
+            # Parse the player start and exit
             if currentLine == 1:
                 playerPos, exit = line.split(':')
                 self.posX, self.posY = playerPos.split(',')
                 self.posX, self.posY = float(self.posX), float(self.posY)
                 self.exitX, self.exitY = exit.split(',')
                 self.exitX, self.exitY = float(self.exitX), float(self.exitY)
+            # Parse the item locations
             elif currentLine == 2:
                 for item in line.split(':'):
                     itemType = item[0]
@@ -389,12 +430,15 @@ class CampaignMode(Mode):
                         self.sprites.append(DoubleDamage(x, y, 8))
                     elif itemType == 'H':
                         self.sprites.append(EnemySpawnHard(x, y, 10))
+            # Turn lines to 2D list for map
             else:
                 map.append([int(c) for c in line])
             currentLine += 1
         return map
 
+    # Run for every game loop
     def timerFired(self):
+        # Check if player at exit, if so then change modes
         if (int(self.posX), int(self.posY)) == (self.exitX, self.exitY):
             if self.levelName == 'sysLevel1':
                 self.interlevelMode.appStarted(self.levelName, 'sysLevel2')
@@ -408,10 +452,12 @@ class CampaignMode(Mode):
                 self.tempName = 'levelEditor'
             elif self.levelName == 'randomLevel1':
                 self.tempName = 'mainMenu'
+            self.interlevelMode.won = True
         self.spawnEnemies()
         self.moveEnemies()
         self.checkItemPickup()
         self.stepAnimations()
+        # If we shot an enemy lower its health or destroy it
         if not self.enemyHit == -1:
             if self.sprites[self.enemyHit].health > self.damage:
                 self.sprites[self.enemyHit].health -= self.damage
@@ -419,52 +465,59 @@ class CampaignMode(Mode):
                 self.sprites.pop(self.enemyHit)
             self.enemyHit = -1
 
+    # Call the spawn function for enemy spawns
     def spawnEnemies(self):
         for sprite in self.sprites:
             if isinstance(sprite, EnemySpawn):
                 sprite.spawn(self.sprites, self.posX, self.posY)
 
+    # Step through the enemy movements
     def moveEnemies(self):
         # Update position of each enemy
         for sprite in self.sprites:
             if isinstance(sprite, Enemy):
-                damage = sprite.move(self.levelMap, self.posX, self.posY, self.time)
+                damage = sprite.move(self.levelMap, self.posX,
+                                        self.posY, self.time)
                 if damage != None:
                     self.playerHealth -= damage
                     if self.playerHealth <= 0:
                         self.appStarted(self.levelName)
                         self.tempName = 'mainMenu'
 
+    # Check if we have collided with an item
     def checkItemPickup(self):
-        # Check if we have collided with an item
         for i in range(len(self.sprites)-1, -1, -1):
-            if isinstance(self.sprites[i], Item) and self.sprites[i].checkCollision(self.posX, self.posY):
+            if (isinstance(self.sprites[i], Item) and
+                self.sprites[i].checkCollision(self.posX, self.posY)):
                 if isinstance(self.sprites[i], Ammo):
-                    self.ammo += 25
+                    self.ammo += 25                     # Add ammo
                 elif isinstance(self.sprites[i], Key):
                     if 'key' not in self.backpack:
-                        self.backpack.append('key')
+                        self.backpack.append('key')     # Add key to backpack
                 elif isinstance(self.sprites[i], DoubleDamage):
                     if 'double' not in self.backpack:
-                        self.backpack.append('double')
+                        self.backpack.append('double')  # Add double damage
                         self.damage += 1
                 self.sprites.pop(i)
 
+    # Step through bullet animations
     def stepAnimations(self):
         for i in range(len(self.bullets)-1, -1, -1):
             if self.bullets[i].step(self.time):
                 self.bullets.pop(i)
 
+    # Shoot whenever the mouse is pressed
     def mousePressed(self, x, y):
         if self.ammo > 0:
             self.bullets.append(Bullet(self.width, self.height, self.bullet))
             self.shotFired = True
             self.ammo -= 1
 
+    # Key pressed handler
     def keyPressed(self, key, mod):
-        if key == pygame.K_b:
+        if key == pygame.K_b:   # 'b' to go to menu
             self.tempName = 'mainMenu'
-        elif key == pygame.K_SPACE:
+        elif key == pygame.K_SPACE:    # 'space to open door'
             self.openDoor()
 
     # Sorts a list based on corresponding values in second list
@@ -492,26 +545,34 @@ class CampaignMode(Mode):
             deltaX = abs(deltaX)
             # Rotate direction vector by rotaion matrix
             oldDirX = self.dirX
-            self.dirX = self.dirX * math.cos(deltaX) - self.dirY * math.sin(deltaX)
-            self.dirY = oldDirX * math.sin(deltaX) + self.dirY * math.cos(deltaX)
+            self.dirX = (self.dirX * math.cos(deltaX) -
+                            self.dirY * math.sin(deltaX))
+            self.dirY = (oldDirX * math.sin(deltaX) +
+                            self.dirY * math.cos(deltaX))
             # Rotate camera plane vector by rotation matrix
             oldPlaneX = self.planeX
-            self.planeX = self.planeX * math.cos(deltaX) - self.planeY * math.sin(deltaX)
-            self.planeY = oldPlaneX * math.sin(deltaX) + self.planeY * math.cos(deltaX)
+            self.planeX = (self.planeX * math.cos(deltaX) -
+                            self.planeY * math.sin(deltaX))
+            self.planeY = (oldPlaneX * math.sin(deltaX) +
+                            self.planeY * math.cos(deltaX))
         else:
             # Rotate direction vector by rotaion matrix
             oldDirX = self.dirX
-            self.dirX = self.dirX * math.cos(-deltaX) - self.dirY * math.sin(-deltaX)
-            self.dirY = oldDirX * math.sin(-deltaX) + self.dirY * math.cos(-deltaX)
+            self.dirX = (self.dirX * math.cos(-deltaX) -
+                            self.dirY * math.sin(-deltaX))
+            self.dirY = (oldDirX * math.sin(-deltaX) +
+                            self.dirY * math.cos(-deltaX))
             # Rotate camera plane vector by rotation matrix
             oldPlaneX = self.planeX
-            self.planeX = self.planeX * math.cos(-deltaX) - self.planeY * math.sin(-deltaX)
-            self.planeY = oldPlaneX * math.sin(-deltaX) + self.planeY * math.cos(-deltaX)
+            self.planeX = (self.planeX * math.cos(-deltaX) -
+                            self.planeY * math.sin(-deltaX))
+            self.planeY = (oldPlaneX * math.sin(-deltaX) +
+                            self.planeY * math.cos(-deltaX))
         self.lastMouseX = x
         self.centerMouse(x)
 
+    # Keep the mouse in the center of the screen
     def centerMouse(self, x):
-        # Keep mouse on screen
         if x > self.width/2 + 100:
             pygame.mouse.set_pos([self.width/2, self.height/2])
             self.lastMouseX = self.width/2
@@ -524,11 +585,7 @@ class CampaignMode(Mode):
         elif y < 150:
             pygame.mouse.set_pos([x, self.height-150])
 
-    # From http://www.cs.cmu.edu/~112/notes/notes-variables-and-functions.html#HelperFunctions
-    def roundHalfUp(self, d):
-        rounding = decimal.ROUND_HALF_UP
-        return int(decimal.Decimal(d).to_integral_value(rounding=rounding))
-
+    # If we are facing a door, turn it to an empty square
     def openDoor(self):
         xDir = round(self.dirX)
         yDir = round(self.dirY)
@@ -546,37 +603,46 @@ class CampaignMode(Mode):
         # Strafe leftward
         if self.isKeyPressed(pygame.K_a, _keys):
             # Check for wall collision in x direction
-            if not self.levelMap[int(self.posX - self.dirY * self.strafeSpeed)][int(self.posY)]:
+            newX = self.posX - self.dirY * self.strafeSpeed * 5.1
+            if not self.levelMap[int(newX)][int(self.posY)]:
                 self.posX -= self.dirY * self.strafeSpeed
             # Check for wall collision in y direction
-            if not self.levelMap[int(self.posX)][int(self.posY + self.dirX * self.strafeSpeed)]:
+            newY = self.posY + self.dirX * self.strafeSpeed * 5.1
+            if not self.levelMap[int(self.posX)][int(newY)]:
                 self.posY += self.dirX * self.strafeSpeed
         # Strafe rightward
         if self.isKeyPressed(pygame.K_d, _keys):
             # Check for wall collision in x direction
-            if not self.levelMap[int(self.posX + self.dirY * self.strafeSpeed)][int(self.posY)]:
+            newX = self.posX + self.dirY * self.strafeSpeed * 5.1
+            if not self.levelMap[int(newX)][int(self.posY)]:
                 self.posX += self.dirY * self.strafeSpeed
             # Check for wall collision in y direction
-            if not self.levelMap[int(self.posX)][int(self.posY - self.dirX * self.strafeSpeed)]:
+            newY = self.posY - self.dirX * self.strafeSpeed * 5.1
+            if not self.levelMap[int(self.posX)][int(newY)]:
                 self.posY -= self.dirX * self.strafeSpeed
         # Walk forward
         if self.isKeyPressed(pygame.K_w, _keys):
             # Check for wall collision in x direction
-            if(not self.levelMap[int(self.posX + self.dirX * self.moveSpeed)][int(self.posY)]):
-                self.posX += self.dirX * self.moveSpeed     # Move in x direction
+            newX = self.posX + self.dirX * self.moveSpeed * 5.1
+            if(not self.levelMap[int(newX)][int(self.posY)]):
+                self.posX += self.dirX * self.moveSpeed    # Move in x direction
             # Check for wall collision in y direction
-            if(not self.levelMap[int(self.posX)][int(self.posY + self.dirY * self.moveSpeed)]):
-                self.posY += self.dirY * self.moveSpeed     # Move in y direction
+            newY = self.posY + self.dirY * self.moveSpeed * 5.1
+            if(not self.levelMap[int(self.posX)][int(newY)]):
+                self.posY += self.dirY * self.moveSpeed    # Move in y direction
         # Walk backwards
         if self.isKeyPressed(pygame.K_s, _keys):
             # Check for wall collision in -x direction
-            if(not self.levelMap[int(self.posX - self.dirX * self.moveSpeed)][int(self.posY)]):
-                self.posX -= self.dirX * self.moveSpeed     # Move in -x direction
-            if(not self.levelMap[int(self.posX)][int(self.posY - self.dirY * self.moveSpeed)]):
-                self.posY -= self.dirY * self.moveSpeed     # Move in -y direction
+            newX = self.posX - self.dirX * self.moveSpeed * 5.1
+            if(not self.levelMap[int(newX)][int(self.posY)]):
+                self.posX -= self.dirX * self.moveSpeed   # Move in -x direction
+            newY = self.posY - self.dirY * self.moveSpeed * 5.1
+            if(not self.levelMap[int(self.posX)][int(newY)]):
+                self.posY -= self.dirY * self.moveSpeed   # Move in -y direction
 
     # Raycasting algorithm from https://lodev.org/cgtutor/raycasting.html
-    # Enhanced wall drawing algoritm from https://codereview.stackexchange.com/a/160096
+    # Enhanced drawing algoritm from
+    #       https://codereview.stackexchange.com/a/160096
     def rayCast(self, screen):
         # ZBuffer stores distances to nearest wall for each column in screen
         ZBuffer = []
@@ -584,8 +650,9 @@ class CampaignMode(Mode):
         for x in range(0, self.width, self.resolution):
             # Initial camera vector setup
             cameraX = 2 * x / self.width - 1
-            rayDirX = self.dirX + self.planeX * cameraX + 0.000000000000001 # Prevent division by 0
-            rayDirY = self.dirY + self.planeY * cameraX + 0.000000000000001 # Prevent division by 0
+            # + 0.000000000000001 to avoid division by zero
+            rayDirX = self.dirX + self.planeX * cameraX + 0.000000000000001
+            rayDirY = self.dirY + self.planeY * cameraX + 0.000000000000001
             # Which square of the map the player is in
             mapX = int(self.posX)
             mapY = int(self.posY)
@@ -617,12 +684,14 @@ class CampaignMode(Mode):
                     mapY += stepY
                     side = 1
                 # Check if ray hits wall or leaves the map boundries
-                if (mapX >= self.mapWidth or mapY >= self.mapHeight or mapX < 0 or
-                    mapY < 0 or self.levelMap[mapX][mapY] > 0):
+                if (mapX >= self.mapWidth or mapY >= self.mapHeight or
+                    mapX < 0 or mapY < 0 or self.levelMap[mapX][mapY] > 0):
                     break
             # Length of the perpendicular ray
-            if side == 0: perpWallDist = (mapX - self.posX + (1 - stepX) / 2) / rayDirX
-            else:         perpWallDist = (mapY - self.posY + (1 - stepY) / 2) / rayDirY
+            if side == 0:
+                perpWallDist = (mapX - self.posX + (1 - stepX) / 2) / rayDirX
+            else:
+                perpWallDist = (mapY - self.posY + (1 - stepY) / 2) / rayDirY
             # Length of the line to draw on the screen
             lineHeight = (self.height / perpWallDist) * self.wallScale
             # Start and end point of each line
@@ -638,12 +707,15 @@ class CampaignMode(Mode):
             wallX -= int(wallX)
             # Scale wallX to texture size
             textureX = int(wallX * self.textureWidth)
-            if side == 0 and rayDirX > 0:   textureX = self.textureWidth - textureX - 1
-            if side == 1 and rayDirY < 0:   textureX = self.textureWidth - textureX - 1
+            if side == 0 and rayDirX > 0:
+                textureX = self.textureWidth - textureX - 1
+            if side == 1 and rayDirY < 0:
+                textureX = self.textureWidth - textureX - 1
             # Enhanced drawing algoritm cited at top of function
             ####################################################
             # Scale color so farther walls are darker
-            c = max(1, (255 - perpWallDist * self.shadowScale) * (1 - side * .25))
+            c = max(1,
+                    (255 - perpWallDist * self.shadowScale) * (1 - side * .25))
             # Get location on screen
             yStart, yStop = max(0, drawStart), min(self.height, drawEnd)
             # Scale to texture size
@@ -665,7 +737,8 @@ class CampaignMode(Mode):
         return ZBuffer
 
     # Sprite drawing algorithm from https://lodev.org/cgtutor/raycasting.html
-    # Enhanced drawing algorithm adapted from https://codereview.stackexchange.com/a/160096
+    # Enhanced drawing algorithm from
+    #       https://codereview.stackexchange.com/a/160096
     def drawSprites(self, screen, ZBuffer):
         numSprites = len(self.sprites)
         # Record the distance from each sprite to the player
@@ -673,7 +746,9 @@ class CampaignMode(Mode):
         spriteDistance = []
         for i in range(numSprites):
             spriteOrder.append(i)
-            spriteDistance.append((self.posX - self.sprites[i].x)**2 + (self.posY - self.sprites[i].y)**2)
+            distance = ((self.posX - self.sprites[i].x)**2 +
+                            (self.posY - self.sprites[i].y)**2)
+            spriteDistance.append(distance)
         # Sort the sprites from nearest to furthest
         spriteOrder = self.dualSort(spriteOrder, spriteDistance)
         # Project each sprite to screen and draw if showing
@@ -686,7 +761,8 @@ class CampaignMode(Mode):
             invDet = 1.0 / (self.planeX * self.dirY - self.dirX * self.planeY)
             # Project coordinates to 3D with projection matrix
             transformX = invDet * (self.dirY * spriteX - self.dirX * spriteY)
-            transformY = invDet * (-self.planeY * spriteX + self.planeX * spriteY)
+            transformY = (invDet *
+                            (-self.planeY * spriteX + self.planeX * spriteY))
             # Scales and shift for the sprite
             xScale, yScale = sprite.xScale, sprite.yScale
             vShift = sprite.vShift
@@ -711,9 +787,12 @@ class CampaignMode(Mode):
             # Blit each column of the sprite to screen
             for stripe in range(int(drawStartX), int(drawEndX)):
                 # Get column of texture
-                texX = int((stripe - (-spriteWidth / 2 + spriteScreenX)) * self.textureWidth / spriteWidth)
-                if texX < 0 or texX > 63: break     # break if out of texture dimensions
-                # Draw if on screen, in front of the camera plane, and closer than the nearest wall
+                texX = int((stripe - (-spriteWidth / 2 + spriteScreenX)) *
+                                self.textureWidth / spriteWidth)
+                if texX < 0 or texX > 63:
+                    break     # break if out of texture dimensions
+                # Draw if on screen, in front of the camera plane, and
+                # closer than the nearest wall
                 if (transformY > 0 and stripe > 0 and stripe < self.width and
                         transformY < ZBuffer[stripe]):
                     if self.shotFired:
@@ -723,7 +802,8 @@ class CampaignMode(Mode):
                     # Scale color so farther walls are darker
                     c = max(1, 255 - transformY * self.shadowScale)
                     # Get location on screen
-                    yStart, yStop = max(0, drawStartY), min(self.height, drawEndY)
+                    yStart = max(0, drawStartY)
+                    yStop = min(self.height, drawEndY)
                     # Scale to texture size
                     pixelsPerTexel = spriteHeight / self.textureHeight
                     colStart = int((yStart - drawStartY) / pixelsPerTexel + .5)
@@ -738,18 +818,23 @@ class CampaignMode(Mode):
                     # Blend with mask calculated previously
                     column.fill((c, c, c), special_flags=pygame.BLEND_MULT)
                     # Scale and blit to screen
-                    column = pygame.transform.scale(column, (self.resolution, yHeight))
+                    column = pygame.transform.scale(column,
+                                                    (self.resolution, yHeight))
                     screen.blit(column, (stripe, yStart))
         self.shotFired = False
 
+    # Check if an enemy is in the center of the screen when player shoots
     def checkEnemyHit(self, x, index):
-        if x < self.width/2+5 and x > self.width/2-5 and isinstance(self.sprites[index], Enemy):
+        if (x < self.width/2+5 and x > self.width/2-5 and
+            isinstance(self.sprites[index], Enemy)):
             self.enemyHit = index
 
+    # Draw the bullets
     def drawAnimations(self, screen):
         for bullet in self.bullets:
             bullet.draw(screen)
 
+    # Draw the heads-up display
     def drawHUD(self, screen):
         # Weapon
         screen.blit(self.weapon, (self.width-325, self.height-225))
@@ -759,7 +844,8 @@ class CampaignMode(Mode):
         pygame.draw.rect(screen, pygame.Color(155, 155, 155),
                 (0, self.height-50, self.width/3, 50), 0)
         screen.blit(self.ammoTitleSurface, (10, self.height-45))
-        self.ammoCountSurface = self.HUDFont.render(f'{self.ammo}', True, (0, 0, 0))
+        self.ammoCountSurface = self.HUDFont.render(f'{self.ammo}',
+                                                    True, (0, 0, 0))
         screen.blit(self.ammoCountSurface, (110, self.height-45))
         for i in range(len(self.backpack)):
             if self.backpack[i] == 'key':
@@ -775,9 +861,13 @@ class CampaignMode(Mode):
                     (40, 10, 100*healthStep, 20))
         pygame.draw.rect(screen, pygame.Color(0, 255, 0),
                     (40, 10, self.playerHealth*healthStep, 20))
+        if 'double' in self.backpack:
+            screen.blit(self.double, (0, 0))
 
+    # Draw wrapper: background, HUD, raycasting
     def redrawAll(self, screen):
-        pygame.draw.rect(screen, (0,0,0), (0, self.height/2, self.width, self.height), 0)
+        pygame.draw.rect(screen, (0,0,0),
+                            (0, self.height/2, self.width, self.height), 0)
         pygame.draw.rect(screen, (0,0,50), (0, 0, self.width, self.height/2), 0)
         # Draw walls and return list of nearest wall for each screen column
         ZBuffer = self.rayCast(screen)
@@ -788,10 +878,8 @@ class CampaignMode(Mode):
 ##################################
 ## LevelEditorMode Class
 ##################################
-# To-do:
-# - Ensure map meets conditions
-# - Drag and place
-# - back button
+# Level Editor Mode:
+# - User can create a map and play it
 class LevelEditorMode(Mode):
     def appStarted(self):
         self.name = 'levelEditor'
@@ -799,87 +887,123 @@ class LevelEditorMode(Mode):
         self.tempName = self.name
         self.boardRows, self.boardCols = 20, 30
         self.size = 20
+        self.holdTimer = 0
+        # Sets up the grid
         self.boardLeft, self.boardTop = 300, 40
         self.buttonBoard = [[0]*self.boardCols for i in range(self.boardRows)]
         self.intBoard = [[0]*self.boardCols for i in range(self.boardRows)]
         for i in range(self.boardRows):
             for j in range(self.boardCols):
-                if i == 0 or j == 0 or i == self.boardRows-1 or j == self.boardCols-1:
-                    self.buttonBoard[i][j] = Button(self.boardLeft+j*self.size, self.boardTop+i*self.size,
-                                                self.size, self.size, self.textures[2])
+                if (i == 0 or j == 0 or i == self.boardRows-1 or
+                    j == self.boardCols-1):
+                    self.buttonBoard[i][j] = Button(self.boardLeft+j*self.size,
+                                                    self.boardTop+i*self.size,
+                                                    self.size, self.size,
+                                                    self.textures[2])
                     self.intBoard[i][j] = 2
                 else:
-                    self.buttonBoard[i][j] = Button(self.boardLeft+j*self.size, self.boardTop+i*self.size,
-                                                self.size, self.size, self.textures[0])
+                    self.buttonBoard[i][j] = Button(self.boardLeft+j*self.size,
+                                                    self.boardTop+i*self.size,
+                                                    self.size, self.size,
+                                                    self.textures[0])
                     self.intBoard[i][j] = 0
         self.buttonSelect = None
         self.issues = []
 
+    # Loads necessary images
     def importAssets(self):
         self.textures = []
         folder = 'Assets/'
         urls =  [
                     'gridCell.png',
                     'playerIcon.png',
-                    'DUNGEONBRICKS2.bmp',
+                    'DUNGEONBRICKS2.bmp',   # Citation 2 in readme.txt
                     'portal.png',
-                    'GOOBRICKS.bmp',
+                    'GOOBRICKS.bmp',        # Citation 2 in readme.txt
                     'monsterSpawn.png',
                     'monsterSpawnHard.png',
                     'plasmaAmmo.png',
                     'doubleDamage.png',
                     'key2.png',
                     'exitIcon.png',
-                    'SPOOKYDOOR.png',
+                    'SPOOKYDOOR.png',       # Citation 2 in readme.txt
                 ]
         for url in urls:
             image = pygame.image.load(folder + url)  # Load image
-            image = image.convert_alpha()                     # Convert pixel format
+            image = image.convert_alpha()               # Convert pixel format
             image = pygame.transform.scale(image,       # Scale to standard size
                 (self.textureWidth, self.textureHeight))
             self.textures.append(image)
 
+    # Import and render fonts
     def createFonts(self):
         # Title
         self.titleFont = pygame.font.SysFont('Vivaldi', 45)
-        self.titleSurface = self.titleFont.render('Level Editor', True, pygame.Color(0, 0, 0))
+        self.titleSurface = self.titleFont.render('Level Editor', True,
+                                                    pygame.Color(0, 0, 0))
         # Create level
         self.createLevelFont = pygame.font.SysFont('Vivaldi', 40)
-        self.createButton = self.createLevelFont.render('Create and Play', True, pygame.Color(0, 0, 0))
+        self.createButton = self.createLevelFont.render('Create and Play',
+                                                    True, pygame.Color(0, 0, 0))
         # Back button
-        self.backSurface = self.createLevelFont.render('Back', True, pygame.Color(0, 0, 0))
+        self.backSurface = self.createLevelFont.render('Back', True,
+                                                        pygame.Color(0, 0, 0))
         # Descriptions
         self.descFont = pygame.font.SysFont('Vivaldi', 25)
-        self.wallsSurface = self.descFont.render('Walls', True, pygame.Color(0, 0, 0))
-        self.playerSurface = self.descFont.render('Player Spawn', True, pygame.Color(0, 0, 0))
-        self.spawnerSurface = self.descFont.render('Monsters', True, pygame.Color(0, 0, 0))
-        self.itemsSurface = self.descFont.render('Items', True, pygame.Color(0, 0, 0))
-        self.exitSurface = self.descFont.render('Exit', True, pygame.Color(0, 0, 0))
+        self.wallsSurface = self.descFont.render('Walls', True,
+                                                    pygame.Color(0, 0, 0))
+        self.playerSurface = self.descFont.render('Player Spawn', True,
+                                                        pygame.Color(0, 0, 0))
+        self.spawnerSurface = self.descFont.render('Monsters', True,
+                                                    pygame.Color(0, 0, 0))
+        self.itemsSurface = self.descFont.render('Items', True,
+                                                    pygame.Color(0, 0, 0))
+        self.doorSurface = self.descFont.render('Door', True,
+                                                    pygame.Color(0, 0, 0))
+        self.exitSurface = self.descFont.render('Exit', True,
+                                                pygame.Color(0, 0, 0))
         # Issues
-        self.playerIssue = self.descFont.render('Add a player spawn!', True, pygame.Color(255, 50, 50))
-        self.itemIssue = self.descFont.render('Add at least one item!', True, pygame.Color(255, 50, 50))
-        self.exitIssue = self.descFont.render('Add an exit!', True, pygame.Color(255, 50, 50))
+        self.playerIssue = self.descFont.render('Add a player spawn!', True,
+                                                    pygame.Color(255, 50, 50))
+        self.itemIssue = self.descFont.render('Add at least one item!',
+                                                True, pygame.Color(255, 50, 50))
+        self.exitIssue = self.descFont.render('Add an exit!', True,
+                                                pygame.Color(255, 50, 50))
 
+    # Create buttons
     def addButtons(self):
         self.buttons = {
-            'player':   Button(235, 90, 40, 40, self.textures[1], hoverAction = 'mouseClick'),
-            'stone':    Button(235, 150, 40, 40, self.textures[2], hoverAction = 'mouseClick'),
-            'gate':     Button(185, 150, 40, 40, self.textures[3], hoverAction = 'mouseClick'),
-            'goo':      Button(135, 150, 40, 40, self.textures[4], hoverAction = 'mouseClick'),
-            'easy':     Button(185, 210, 40, 40, self.textures[5], hoverAction = 'mouseClick'),
-            'hard':     Button(235, 210, 40, 40, self.textures[6], hoverAction = 'mouseClick'),
-            'ammo':     Button(235, 270, 40, 40, self.textures[7], hoverAction = 'mouseClick'),
-            'double':   Button(185, 270, 40, 40, self.textures[8], hoverAction = 'mouseClick'),
-            'key':      Button(135, 270, 40, 40, self.textures[9], hoverAction = 'mouseClick'),
-            'exit':     Button(235, 330, 40, 40, self.textures[10], hoverAction = 'mouseClick'),
-            'door':     Button(235, 390, 40, 40, self.textures[11], hoverAction = 'mouseClick'),
+            'player':   Button(235, 90, 40, 40, self.textures[1],
+                                hoverAction = 'mouseClick'),
+            'stone':    Button(235, 150, 40, 40, self.textures[2],
+                                hoverAction = 'mouseClick'),
+            'gate':     Button(185, 150, 40, 40, self.textures[3],
+                                hoverAction = 'mouseClick'),
+            'goo':      Button(135, 150, 40, 40, self.textures[4],
+                                hoverAction = 'mouseClick'),
+            'easy':     Button(185, 210, 40, 40, self.textures[5],
+                                hoverAction = 'mouseClick'),
+            'hard':     Button(235, 210, 40, 40, self.textures[6],
+                                hoverAction = 'mouseClick'),
+            'ammo':     Button(235, 270, 40, 40, self.textures[7],
+                                hoverAction = 'mouseClick'),
+            'double':   Button(185, 270, 40, 40, self.textures[8],
+                                hoverAction = 'mouseClick'),
+            'key':      Button(135, 270, 40, 40, self.textures[9],
+                                hoverAction = 'mouseClick'),
+            'door':     Button(235, 330, 40, 40, self.textures[11],
+                                hoverAction = 'mouseClick'),
+            'exit':     Button(235, 390, 40, 40, self.textures[10],
+                                hoverAction = 'mouseClick'),
             'create':   Button(self.width-self.createButton.get_width()/1.5,
                                 self.height-self.createButton.get_height(),
-                                *self.createButton.get_size(), self.createButton),
+                                *self.createButton.get_size(),
+                                self.createButton),
             'back':     Button(350, self.height-self.backSurface.get_height(),
                                 *self.backSurface.get_size(), self.backSurface)
         }
 
+    # Check for mouse hover on buttons
     def mouseMotion(self, x, y):
         for button in self.buttons:
             self.buttons[button].updateHover(x, y)
@@ -887,20 +1011,24 @@ class LevelEditorMode(Mode):
             for j in range(self.boardCols):
                 self.buttonBoard[i][j].updateHover(x, y)
 
+    # Check for click on buttons
     def mousePressed(self, x, y):
+        self.holdTimer = 0
         if self.buttonSelect != None:
             for i in range(self.boardRows):
                 for j in range(self.boardCols):
                     if self.buttonBoard[i][j].mouseOver(x, y):
                         if self.intBoard[i][j] != self.buttonSelect:
-                            self.buttonBoard[i][j].surface = pygame.transform.scale(
-                                                                self.textures[self.buttonSelect],
-                                                                (self.size, self.size))
+                            self.buttonBoard[i][j].surface = \
+                                    pygame.transform.scale(
+                                            self.textures[self.buttonSelect],
+                                            (self.size, self.size))
                             self.intBoard[i][j] = self.buttonSelect
                         else:
-                            self.buttonBoard[i][j].surface = pygame.transform.scale(
-                                                                self.textures[0],
-                                                                (self.size, self.size))
+                            self.buttonBoard[i][j].surface = \
+                                    pygame.transform.scale(
+                                                    self.textures[0],
+                                                    (self.size, self.size))
                             self.intBoard[i][j] = 0
                         self.buttonBoard[i][j].click(x, y)
                         return
@@ -915,6 +1043,23 @@ class LevelEditorMode(Mode):
         elif self.buttons['back'].mouseOver(x, y):
             self.tempName = 'mainMenu'
 
+    def mouseDrag(self, x, y):
+        self.holdTimer += 1
+        if self.holdTimer > 3 and self.buttonSelect != None:
+            for i in range(self.boardRows):
+                for j in range(self.boardCols):
+                    if self.buttonBoard[i][j].mouseOver(x, y):
+                        if self.intBoard[i][j] != self.buttonSelect:
+                            self.buttonBoard[i][j].surface = \
+                                    pygame.transform.scale(
+                                            self.textures[self.buttonSelect],
+                                            (self.size, self.size))
+                            self.intBoard[i][j] = self.buttonSelect
+
+                        self.buttonBoard[i][j].click(x, y)
+                        return
+
+    # Set the selected wall/item
     def updateButtonSelection(self):
         if self.buttons['player'].clicked:  self.buttonSelect = 1; return
         elif self.buttons['stone'].clicked: self.buttonSelect = 2; return
@@ -928,6 +1073,7 @@ class LevelEditorMode(Mode):
         elif self.buttons['exit'].clicked:  self.buttonSelect = 10; return
         elif self.buttons['door'].clicked:  self.buttonSelect = 11; return
 
+    # Ensure the map meets requirements to prevent crashing
     def checkConditions(self):
         hasPlayer = hasItem = hasExit = False
         for i in range(self.boardRows):
@@ -942,7 +1088,7 @@ class LevelEditorMode(Mode):
         if not hasExit:     self.issues.append('exit')
         return hasPlayer and hasItem and hasExit
 
-
+    # Export the grid to a file
     def exportMap(self):
         spriteString = ''
         mapString = ''
@@ -981,29 +1127,36 @@ class LevelEditorMode(Mode):
         self.tempName = 'campaign'
         self.startLevel = True
 
+    # Draw wrapper function
     def redrawAll(self, screen):
         screen.fill((145, 238, 255))
         screen.blit(self.titleSurface, (15, 10))
-        pygame.draw.rect(screen, pygame.Color(252, 253, 222), (15, 10+self.titleSurface.get_height(),
-                        30+self.titleSurface.get_width(), self.height-25-self.titleSurface.get_height()), 0)
+        pygame.draw.rect(screen, pygame.Color(252, 253, 222),
+                        (15, 10+self.titleSurface.get_height(),
+                        30+self.titleSurface.get_width(),
+                        self.height-25-self.titleSurface.get_height()), 0)
         self.drawOptions(15, 10+self.titleSurface.get_height(), screen)
         self.drawBoard(200, 40, 20, screen)
         self.drawIssues(screen)
         for button in self.buttons:
             self.buttons[button].draw(screen)
 
+    # Draw the board
     def drawBoard(self, x, y, size, screen):
         for i in range(self.boardRows):
             for j in range(self.boardCols):
                 self.buttonBoard[i][j].draw(screen)
 
+    # Draw the selectable buttons
     def drawOptions(self, left, top, screen):
         screen.blit(self.playerSurface, (left+5, top+5))
         screen.blit(self.wallsSurface, (left+5, top+65))
         screen.blit(self.spawnerSurface, (left+5, top+125))
         screen.blit(self.itemsSurface, (left+5, top+185))
-        screen.blit(self.exitSurface, (left+5, top+245))
+        screen.blit(self.doorSurface, (left+5, top+245))
+        screen.blit(self.exitSurface, (left+5, top+305))
 
+    # Draw any issues with the map
     def drawIssues(self, screen):
         if len(self.issues) == 0:
             return
@@ -1018,49 +1171,93 @@ class LevelEditorMode(Mode):
 ##################################
 ## InterlevelMode Class
 ##################################
+# Interlevel Mode:
+# - Presents options in between levels
 class InterlevelMode(Mode):
     def __init__(self, width, height, res, fps, texW, texH, campaignMode):
         super().__init__(width, height, res, fps, texW, texH)
         self.campaignMode = campaignMode
 
+    # Set the current level and next level
     def appStarted(self, currentLevel = 'sysLevel1', nextLevel = 'sysLevel2'):
         self.name = 'interlevel'
         self.tempName = self.name
         self.currentLevel = currentLevel
         self.nextLevel = nextLevel
+        self.won = False
 
+    # Load necessary images
     def importAssets(self):
-        self.background = pygame.image.load('Assets/background.png').convert_alpha()
+        self.background = \
+                    pygame.image.load('Assets/background.png').convert_alpha()
         self.background = pygame.transform.scale(self.background,
                                                     (self.width, self.height))
 
+    # Load and render fonts
     def createFonts(self):
         # Button font
         self.buttonFont = pygame.font.SysFont('Vivaldi', 45)
-        self.playAgainSurface = self.buttonFont.render('Restart Level', True, pygame.Color(255, 255, 255))
-        self.nextLevelSurface = self.buttonFont.render('Next Level', True, pygame.Color(255, 255, 255))
+        self.playAgainSurface = self.buttonFont.render('Restart Level', True,
+                                                    pygame.Color(255, 255, 255))
+        self.nextLevelSurface = self.buttonFont.render('Next Level', True,
+                                                    pygame.Color(255, 255, 255))
+        self.menuSurface = self.buttonFont.render('Main Menu', True,
+                                                    pygame.Color(255, 255, 255))
+        self.lossSurface = self.buttonFont.render('You died.', True,
+                                                    pygame.Color(255, 255, 255))
+        self.winSurface = self.buttonFont.render('You survivied.', True,
+                                                    pygame.Color(255, 255, 255))
 
+    # Create buttons
     def addButtons(self):
         self.buttons = {
-            'play':     Button(self.width/4, 2*self.height/3, *self.playAgainSurface.get_size(),
+            'play':     Button(self.width/4, 2*self.height/3,
+                                *self.playAgainSurface.get_size(),
                                 self.playAgainSurface),
-            'next':     Button(3*self.width/4, 2*self.height/3, *self.nextLevelSurface.get_size(),
-                                self.nextLevelSurface)
+            'next':     Button(3*self.width/4, 2*self.height/3,
+                                *self.nextLevelSurface.get_size(),
+                                self.nextLevelSurface),
+            'main':     Button(self.width/2, 2*self.height/3,
+                                *self.menuSurface.get_size(),
+                                self.menuSurface),
+            'win':      Button(self.width/2, 5*self.height/6,
+                                *self.winSurface.get_size(),
+                                self.winSurface),
+            'loss':     Button(self.width/2, 5*self.height/6,
+                                *self.lossSurface.get_size(),
+                                self.lossSurface)
         }
 
+    # Check for button presses
     def mousePressed(self, x, y):
+        # Restart the current level
         if self.buttons['play'].mouseOver(x, y):
             self.campaignMode.appStarted(self.currentLevel)
             self.tempName = 'campaign'
-        elif self.buttons['next'].mouseOver(x, y):
+        # Play next level
+        elif self.buttons['next'].mouseOver(x, y) and self.won:
             if self.nextLevel == 'mainMenu':
+                self.campaignMode.appStarted(self.currentLevel)
                 self.tempName = 'mainMenu'
             else:
                 self.campaignMode.appStarted(self.nextLevel)
                 self.tempName = 'campaign'
+        elif self.buttons['main']:
+            if self.won:
+                self.campaignMode.appStarted(self.nextLevel)
+            else:
+                self.campaignMode.appStarted(self.currentLevel)
+            self.tempName = 'mainMenu'
 
+
+    # Draw the background and buttons
     def redrawAll(self, screen):
         screen.fill((0, 0, 0))
         screen.blit(self.background, (0, 0))
-        for button in self.buttons:
-            self.buttons[button].draw(screen)
+        if self.won:
+            self.buttons['win'].draw(screen)
+            self.buttons['next'].draw(screen)
+        else:
+            self.buttons['loss'].draw(screen)
+        self.buttons['play'].draw(screen)
+        self.buttons['main'].draw(screen)
