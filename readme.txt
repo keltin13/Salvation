@@ -16,7 +16,7 @@ intuitive and all three game modes can be accessed by clicking on their
 corresponding buttons.
 
 The following libraries must be installed:
-    pygame, math, string, random
+    pygame (built on 1.9.6), math, string, random
 
 There are no shortcut commands.
 
